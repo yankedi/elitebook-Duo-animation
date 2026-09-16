@@ -34,6 +34,29 @@ public:
     void BringToFront();
     bool IsShown() const { return m_shown; }
 
+    // Follows a desktop mode change.  The window and its swap chain have to
+    // cover the new resolution or the effect would be drawn at the wrong size.
+    bool Resize(uint32_t width, uint32_t height);
+
+    // ---- environment -------------------------------------------------------
+    // Monitor power state, asked of Windows rather than inferred from the lid
+    // angle: 0 = off, 1 = on, 2 = dimmed.
+    bool DisplayOn() const { return m_displayOn; }
+
+    // Lid switch state from the ACPI lid device; -1 when the machine does not
+    // expose one.
+    int LidSwitchState() const { return m_lidSwitch; }
+
+    // Whether Windows accepted the subscriptions.  When it did not, the safety
+    // gate falls back to the lid angle and the sensor freshness alone.
+    bool DisplayNotifyActive() const { return m_displayNotify != nullptr; }
+    bool LidNotifyActive() const { return m_lidNotify != nullptr; }
+
+    // True once after a display power transition, a lid switch change, a mode
+    // change or a suspend/resume, so the caller can re-arm its safety gate
+    // instead of trusting a frame captured before the transition.
+    bool ConsumeEnvironmentChange();
+
     // Drains the message queue; returns false once the window is gone.
     bool PumpMessages();
     int ConsumeKeyPress();
@@ -53,6 +76,14 @@ private:
     uint32_t m_height = 0;
     bool m_shown = false;
     int m_pendingKey = 0;
+
+    // Power setting subscriptions.  A hidden window still receives these: they
+    // are posted to the HWND, not delivered only while it is on screen.
+    HPOWERNOTIFY m_displayNotify = nullptr;
+    HPOWERNOTIFY m_lidNotify = nullptr;
+    bool m_displayOn = true;
+    int m_lidSwitch = -1;
+    bool m_environmentChanged = false;
 };
 
 } // namespace dragonfly

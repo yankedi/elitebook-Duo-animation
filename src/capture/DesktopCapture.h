@@ -52,11 +52,23 @@ public:
     bool Valid() const { return m_duplication != nullptr; }
     const std::string& Error() const { return m_error; }
 
+    // True while the duplication is alive and can still be asked for frames.
+    // A mode change, a display power transition, a switch to the secure desktop
+    // or another capture taking over all kill it, and a dead duplication cannot
+    // be revived -- only replaced.
+    bool Healthy() const { return m_duplication != nullptr && !m_lost; }
+
+    // Replaces a duplication that returned DXGI_ERROR_ACCESS_LOST, or brings
+    // one up for the first time.  Does nothing while the existing one is still
+    // healthy.
+    bool TryRestart(ID3D11Device* device);
+
 private:
     Microsoft::WRL::ComPtr<IDXGIOutputDuplication> m_duplication;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> m_frame;
 
     bool m_acquired = false;
+    bool m_lost = false;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;

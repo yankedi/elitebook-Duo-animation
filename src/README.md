@@ -414,12 +414,57 @@ radius = blurStrength × smoothstep(0.08, 1.0, height) × sin(delta) × 屏高/1
 - `smoothstep(0.08, 1.0, …)`：靠近铰链的最后一段保持清晰（参考 lid-plane）
 - 按屏高归一化 → 换分辨率不会改变观感
 
-### 生命周期
+### 生命周期与安全门（DisplaySafetyGate）
 
-- `delta > 0` 时显示 overlay 并渲染；否则**隐藏并完全停止渲染**（空闲 CPU 接近 0）
+`delta > 0` 只是必要条件，**不是**充分条件。真正决定 overlay 能否出现在屏幕上的是一道安全门，
+同样来自 lid-plane 的策略（`DisplaySafetyGate`：*fail closed, then wait for a stable display
+before restarting capture*）：
+
+| 状态 | 触发 | 行为 |
+|---|---|---|
+| `Paused - lid closed` | 盖子开关说已合上，或 `hingeAngle ≤ 8°` / Lid Mode 0（带迟滞） | 隐藏 overlay，停止渲染 |
+| `Paused - display unavailable` | 显示器电源状态变为 off | 同上 |
+| `Paused - capture lost` | duplication 返回 `DXGI_ERROR_ACCESS_LOST` 等 | 同上，并重建 duplication |
+| `Paused - sensor unavailable` | OrientationSensor 超过 1 s 没有新读数 | 同上 |
+| `Waiting for display...` | 以上全部恢复 | 继续等待 0.5 s 稳定期 |
+| `Ready` | 稳定期满 | 才允许重新抓屏并显示 |
+
+为什么需要它：**合盖时 `delta` 正好是最大值**。没有这道门，overlay 会在整个合盖期间一直挂着，
+显示的是"合盖前那一刻"的冻结快照（满量程模糊，且 50° 以下 `sin(delta)` 饱和所以看起来毫无变化），
+开盖后第一眼看到的就是它 —— 现象就是"卡在模糊界面，直到回到激活角才恢复"。
+
+其余保障：
+
+- **没有有效帧就绝不显示 overlay**（fail closed）：抓屏失败时宁可不做效果，也不放一张旧图上去
+- 每次进入效果只抓**一次**屏（先隐藏 overlay 再抓），避免 shader 采样自身输出形成 feedback loop；
+  抓屏失败会在下一轮重试
+- 合盖/开盖、显示器电源切换、`WM_DISPLAYCHANGE`、睡眠唤醒都会**重置**稳定期，
+  所以开盖后不可能复用合盖前的帧
+- 分辨率/输出变化时按新的模式重建 capture、交换链、内容纹理与渲染器
 - overlay 为 `WS_EX_TRANSPARENT`，鼠标可穿透，不影响正常操作
-- 每次进入效果只抓**一次**屏（先隐藏 overlay 再抓），避免 shader 采样自身输出形成 feedback loop
+- `delta ≤ 0` 或越过摊平（Lid Mode 3+）时同样隐藏并完全停止渲染（空闲 CPU 接近 0）
 - `[ESC]` / `[F10]` 全局退出（`GetAsyncKeyState`，不依赖窗口焦点）
+
+启动横幅会打印这道门实际拿到的信号源，便于判断是哪一条在起作用：
+
+```
+monitor power on (notify yes), lid switch unknown (notify yes), settle 0.5 s
+```
+
+`notify yes` 表示 Windows 接受了该电源通知的订阅；`lid switch unknown` 表示还没收到过
+盖子开关事件（该 API 只在状态变化时通知，不提供初始值），此时门依赖角度与显示器电源。
+
+逻辑部分有自检，不需要真的去合盖子（`--selftest`）：
+
+```
+=== display safety gate self test ===
+  lid shut  (no settle allowed)        hidden   ok
+  state after a lid close              Paused - lid closed    ok
+  reopened, 0.1 s                      hidden   ok
+  reopened, 0.6 s                      ready    ok
+  ...
+gate self test: 19 checks, 0 mismatches -> PASS
+```
 
 ### 可调参数
 

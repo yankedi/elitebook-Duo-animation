@@ -9,6 +9,14 @@ namespace {
 
 const wchar_t* kWindowClass = L"DragonflyFoldOverlay";
 
+// The two power settings this overlay listens to.  The values are declared in
+// winnt.h; they are repeated here so the build does not depend on which library
+// happens to carry their definitions.
+const GUID kConsoleDisplayState =
+    {0x6fe69556, 0x704a, 0x47a0, {0x8f, 0x24, 0xc2, 0x8d, 0x93, 0x6f, 0xda, 0x47}};
+const GUID kLidSwitchState =
+    {0xba3e0f4d, 0xb817, 0x4094, {0xa2, 0xd1, 0xd5, 0x63, 0x79, 0xe6, 0xa0, 0xf3}};
+
 } // namespace
 
 bool OverlayWindow::Create(const std::wstring& title) {
@@ -54,15 +62,52 @@ bool OverlayWindow::Create(const std::wstring& title) {
 
     // Created hidden; the effect shows it only while it has something to draw.
     m_shown = false;
+
+    // Monitor power and lid switch come from Windows itself.  Registering is
+    // allowed to fail (not every machine exposes a lid device), in which case
+    // DisplayOn() stays true and the lid angle gate carries the load.
+    m_displayNotify = RegisterPowerSettingNotification(
+        m_hwnd, &kConsoleDisplayState, DEVICE_NOTIFY_WINDOW_HANDLE);
+    m_lidNotify = RegisterPowerSettingNotification(
+        m_hwnd, &kLidSwitchState, DEVICE_NOTIFY_WINDOW_HANDLE);
     return true;
 }
 
 void OverlayWindow::Destroy() {
+    if (m_displayNotify) {
+        UnregisterPowerSettingNotification(m_displayNotify);
+        m_displayNotify = nullptr;
+    }
+    if (m_lidNotify) {
+        UnregisterPowerSettingNotification(m_lidNotify);
+        m_lidNotify = nullptr;
+    }
     if (m_hwnd) {
         DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
     }
     m_shown = false;
+}
+
+bool OverlayWindow::Resize(uint32_t width, uint32_t height) {
+    if (!m_hwnd || width == 0 || height == 0) {
+        return false;
+    }
+    if (width == m_width && height == m_height) {
+        return true;
+    }
+
+    m_width = width;
+    m_height = height;
+    SetWindowPos(m_hwnd, HWND_TOPMOST, 0, 0, static_cast<int>(width),
+                 static_cast<int>(height), SWP_NOACTIVATE | SWP_NOMOVE);
+    return true;
+}
+
+bool OverlayWindow::ConsumeEnvironmentChange() {
+    const bool changed = m_environmentChanged;
+    m_environmentChanged = false;
+    return changed;
 }
 
 void OverlayWindow::Show(bool visible) {
@@ -146,6 +191,43 @@ LRESULT OverlayWindow::HandleMessage(HWND window, UINT message, WPARAM wParam,
 
     case WM_ERASEBKGND:
         return 1;  // D3D paints every frame
+
+    case WM_POWERBROADCAST:
+        switch (wParam) {
+        case PBT_POWERSETTINGCHANGE: {
+            const auto* setting =
+                reinterpret_cast<const POWERBROADCAST_SETTING*>(lParam);
+            if (setting && setting->DataLength >= sizeof(DWORD)) {
+                const DWORD value = *reinterpret_cast<const DWORD*>(setting->Data);
+                if (setting->PowerSetting == kConsoleDisplayState) {
+                    // 0 = off, 1 = on, 2 = dimmed.  Anything but "off" counts as
+                    // usable: a dimmed panel is still a panel.
+                    m_displayOn = (value != 0);
+                    m_environmentChanged = true;
+                } else if (setting->PowerSetting == kLidSwitchState) {
+                    m_lidSwitch = static_cast<int>(value);
+                    m_environmentChanged = true;
+                }
+            }
+            break;
+        }
+        case PBT_APMSUSPEND:
+        case PBT_APMRESUMESUSPEND:
+        case PBT_APMRESUMEAUTOMATIC:
+            // Whatever happens around a sleep invalidates the desktop we are
+            // holding; the caller re-arms and captures again.
+            m_environmentChanged = true;
+            break;
+        default:
+            break;
+        }
+        return TRUE;
+
+    case WM_DISPLAYCHANGE:
+        // Resolution or output changed: the overlay, swap chain and captured
+        // frame are all sized for the previous mode.
+        m_environmentChanged = true;
+        return 0;
 
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:

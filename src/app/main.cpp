@@ -15,6 +15,7 @@
 //  FoldAnimationState.
 // ---------------------------------------------------------------------------
 #include "ConsoleUi.h"
+#include "DisplaySafetyGate.h"
 #include "FoldEffectMode.h"
 
 #include "../animation/FoldAnimationController.h"
@@ -355,6 +356,87 @@ void RunEstimatorSelfTest() {
                 "phase, holds while 'hold', and does not drift.\n\n");
 }
 
+// ==========================================================================
+//  Safety gate self test
+//
+//  The gate is pure logic, and it is the piece that decides whether a stale
+//  overlay may stay on screen -- the failure mode being reproduced is "close
+//  the lid, open it again, get a frozen blurred frame until the activation
+//  angle".  So the transitions are checked here rather than only by closing a
+//  real lid: lid shut, display off, capture lost, sensor gone quiet, and the
+//  settling delay after each.
+// ==========================================================================
+int RunSafetyGateSelfTest() {
+    dragonfly::DisplaySafetyGate gate;
+
+    int failures = 0;
+    int checks = 0;
+
+    auto expect = [&](const char* what, bool ready, bool expectedReady) {
+        ++checks;
+        const bool ok = (ready == expectedReady);
+        if (!ok) {
+            ++failures;
+        }
+        std::printf("  %-58s %-8s %s\n", what, ready ? "ready" : "hidden",
+                    ok ? "ok" : "MISMATCH");
+    };
+
+    auto expectState = [&](const char* what, dragonfly::DisplaySafetyGate::State actual,
+                           dragonfly::DisplaySafetyGate::State expected) {
+        ++checks;
+        const bool ok = (actual == expected);
+        if (!ok) {
+            ++failures;
+        }
+        std::printf("  %-58s %-22s %s\n", what,
+                    dragonfly::DisplaySafetyGate::Text(actual),
+                    ok ? "ok" : "MISMATCH");
+    };
+
+    std::printf("\n=== display safety gate self test ===\n");
+    std::printf("  %-58s %-8s %s\n", "step", "effect", "");
+
+    // A healthy environment still has to settle before capture restarts.
+    expect("healthy, first call", gate.Update(false, true, true, true, 1.0), false);
+    expect("0.4 s of healthy", gate.Update(false, true, true, true, 1.4), false);
+    expect("0.7 s of healthy", gate.Update(false, true, true, true, 1.7), true);
+
+    // Shutting the lid fails immediately, with no settling period.
+    expect("lid shut  (no settle allowed)", gate.Update(true, true, true, true, 2.0), false);
+    expectState("state after a lid close", gate.Current(),
+                dragonfly::DisplaySafetyGate::State::Closed);
+    // ... and reopening has to settle from scratch, so the frame captured
+    // before the close can never be shown again.
+    expect("reopened, 0.1 s", gate.Update(false, true, true, true, 2.1), false);
+    expect("reopened, 0.6 s", gate.Update(false, true, true, true, 2.7), true);
+
+    expect("display off", gate.Update(false, false, true, true, 3.0), false);
+    expectState("state with the monitor off", gate.Current(),
+                dragonfly::DisplaySafetyGate::State::DisplayOff);
+    expect("display back, settling", gate.Update(false, true, true, true, 3.2), false);
+
+    expect("duplication lost", gate.Update(false, true, false, true, 4.0), false);
+    expectState("state with a lost duplication", gate.Current(),
+                dragonfly::DisplaySafetyGate::State::CaptureLost);
+    expect("capture back, settling", gate.Update(false, true, true, true, 4.2), false);
+
+    expect("sensor silent for 2 s", gate.Update(false, true, true, false, 5.0), false);
+    expectState("state with a silent sensor", gate.Current(),
+                dragonfly::DisplaySafetyGate::State::SensorStale);
+
+    // A gate that flaps is as bad as one that never closes.
+    gate.Reset();
+    expect("flap: healthy 0.4 s", gate.Update(false, true, true, true, 10.0), false);
+    expect("flap: lid shut again", gate.Update(true, true, true, true, 10.5), false);
+    expect("flap: healthy 0.4 s", gate.Update(false, true, true, true, 11.0), false);
+    expect("flap: settled 0.9 s", gate.Update(false, true, true, true, 11.6), true);
+
+    std::printf("\ngate self test: %d checks, %d mismatches -> %s\n\n", checks, failures,
+                failures == 0 ? "PASS" : "FAIL");
+    return failures == 0 ? 0 : 1;
+}
+
 } // namespace
 
 // ==========================================================================
@@ -604,7 +686,7 @@ int wmain(int argc, wchar_t** argv) {
 
     if (options.selfTest) {
         RunEstimatorSelfTest();
-        return 0;
+        return RunSafetyGateSelfTest();
     }
 
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);

@@ -114,6 +114,7 @@ add_executable(DragonflySensorDiag
     app/main.cpp
     app/ConsoleUi.cpp
     app/FoldEffectMode.cpp
+    app/DisplaySafetyGate.cpp
     animation/FoldAnimationController.cpp
     capture/DesktopCapture.cpp
     config/ConfigLoader.cpp

@@ -80,7 +80,11 @@ void D3DDevice::Resize(uint32_t width, uint32_t height) {
     if (m_context) {
         m_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
+    // Both back buffer references have to go before ResizeBuffers: while one is
+    // held, the swap chain refuses with DXGI_ERROR_INVALID_CALL and the resize
+    // silently does nothing.
     m_backBuffer.Reset();
+    m_backBufferTexture.Reset();
 
     if (FAILED(m_swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0))) {
         return;

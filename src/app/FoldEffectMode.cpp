@@ -3,6 +3,8 @@
 // ---------------------------------------------------------------------------
 #include "FoldEffectMode.h"
 
+#include "DisplaySafetyGate.h"
+
 #include "../capture/DesktopCapture.h"
 #include "../graphics/D3DDevice.h"
 #include "../graphics/FoldRenderer.h"
@@ -57,14 +59,21 @@ int PollConsoleKey() {
     return key;
 }
 
+// Hysteresis for "the lid is shut".  The hinge angle is derived from the panel
+// normal, so it is least reliable exactly when the lid is closed; a single
+// threshold would flap the safety gate open and shut.
+constexpr double kLidClosedDegrees = 8.0;
+constexpr double kLidOpenDegrees = 25.0;
+
 std::string FormatLine(const char* phase, double hingeAngle, double angleDelta,
-                       double activationAngle, int lidMode, bool overlayVisible,
-                       bool hasContent, uint64_t frames, uint64_t captures) {
+                       double activationAngle, const char* gateText, int lidMode,
+                       bool overlayVisible, bool hasContent, uint64_t frames,
+                       uint64_t captures) {
     char buffer[300];
     std::snprintf(buffer, sizeof(buffer),
-                  "%s  hinge %6.1f   delta %6.1f (act %.0f)   lid %s   "
+                  "%s  hinge %6.1f   delta %6.1f (act %.0f)   %-28s lid %s   "
                   "overlay %s   content %-3s   frames %llu   grabs %llu",
-                  phase, hingeAngle, angleDelta, activationAngle,
+                  phase, hingeAngle, angleDelta, activationAngle, gateText,
                   lidMode < 0 ? "--" : std::to_string(lidMode).c_str(),
                   overlayVisible ? "ON " : "off", hasContent ? "yes" : "NO",
                   static_cast<unsigned long long>(frames),
@@ -83,8 +92,8 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         terminal.Write("ERROR: could not create the overlay window.\n");
         return 1;
     }
-    const uint32_t width = overlay.Width();
-    const uint32_t height = overlay.Height();
+    uint32_t width = overlay.Width();
+    uint32_t height = overlay.Height();
 
     // ---- D3D device -------------------------------------------------------
     D3DDevice device;
@@ -138,6 +147,11 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         return 1;
     }
 
+    // ---- safety gate ------------------------------------------------------
+    // Decides whether the effect may be on screen at all; see DisplaySafetyGate.h.
+    // Declared here because the banner below reports its recovery delay.
+    DisplaySafetyGate safety;
+
     terminal.Write(
         "\nFold effect armed.\n"
         "The desktop is left completely untouched at or above the activation\n"
@@ -147,16 +161,22 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         "\n"
         "STOP: press [ESC] or [F10] -- these are read globally, so they work even\n"
         "      though the overlay holds the screen.  [Q] in this console also works.\n\n");
-    char setup[400];
+    char setup[600];
+    const int initialLidSwitch = overlay.LidSwitchState();
     std::snprintf(setup, sizeof(setup),
                   "  display %ux%u, %u dpi -> eye distance %.0f px\n"
                   "  activation %.0f deg, blur %.0f/1000px, darken %.3f, max delta %.0f deg\n"
-                  "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n\n",
+                  "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
+                  "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.1f s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
                   capture.Width(), capture.Height(), static_cast<int>(capture.Format()),
-                  width, height);
+                  width, height, overlay.DisplayOn() ? "on" : "off",
+                  overlay.DisplayNotifyActive() ? "yes" : "NO",
+                  initialLidSwitch < 0 ? "unknown"
+                                       : (initialLidSwitch != 0 ? "open" : "closed"),
+                  overlay.LidNotifyActive() ? "yes" : "NO", safety.RecoveryDelay());
     terminal.Write(setup);
 
     // ---- prime the first frame -------------------------------------------
@@ -197,17 +217,43 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             "         If this persists, another capture tool may hold the desktop.\n\n");
     }
 
-    // ---- sensor state -----------------------------------------------------
+    // ---- effect state -----------------------------------------------------
     OrientationTracker tracker;
     tracker.Configure(0.075);
 
     bool pastFlat = false;
+    // Latched, because the hinge estimate is driven by acos() of the panel
+    // normal: near the fully closed pose that value sits on the singularity and
+    // is far too noisy to be compared against a single threshold every frame.
+    bool lidClosedLatch = false;
     double lastSampleSeconds = 0.0;
     double lastReportSeconds = -1.0;
+    double lastRecoverySeconds = -1.0;
+    std::size_t lastLineLength = 0;
     bool lastEffectWanted = false;
     uint64_t renderedFrames = 0;
     uint64_t captureCount = 0;
     uint64_t loopCount = 0;
+    uint64_t modeChanges = 0;
+
+    // Grabs the desktop into the content texture.  Returns false if the
+    // duplication is gone -- the caller must then stop drawing rather than keep
+    // showing whatever the texture still holds.
+    auto grabDesktop = [&]() -> bool {
+        for (int attempt = 0; attempt < 3; ++attempt) {
+            if (!capture.AcquireFrame(120)) {
+                if (!capture.Healthy()) {
+                    return false;
+                }
+                continue;  // timeout: the frame simply had not changed yet
+            }
+            capture.CopyFrameTo(device.Context(), content.Get());
+            capture.ReleaseFrame();
+            ++captureCount;
+            return true;
+        }
+        return false;
+    };
 
     auto nextTick = std::chrono::steady_clock::now();
 
@@ -265,10 +311,98 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         const double angleDelta =
             static_cast<double>(options.activationAngleDeg) - hingeAngle;
 
+        // ---- environment safety gate ----------------------------------------
+        // Strategy from lid-plane (jh3y/lid-plane, GPL-3.0-or-later): while the
+        // lid is shut, the display is not usable or the sensor has stopped
+        // delivering, the effect is paused AND its overlay removed.
+        //
+        // Without this the loop below happily keeps rendering: a shut lid puts
+        // delta at its maximum, so the overlay stays up at full blur, frozen,
+        // for as long as the lid is closed -- and that stale frame is the first
+        // thing the panel shows when it comes back.
+        const double sensorAge =
+            sample.orientationSensor.AgeSeconds(sample.steadySeconds);
+        const bool sensorFresh = sensorAge >= 0.0 && sensorAge <= 1.0;
+
+        // Entering "closed" needs an unambiguous low angle, leaving it needs an
+        // unambiguous high one, so the noise near the closed singularity cannot
+        // flap the gate.  The ACPI lid switch, when the machine has one, is the
+        // most direct signal of all and is used ahead of the angle.
+        const int lidSwitch = overlay.LidSwitchState();
+        if (lidSwitch == 0 ||
+            (sensorFresh && (lidMode == 0 || hingeAngle <= kLidClosedDegrees))) {
+            lidClosedLatch = true;
+        } else if (lidSwitch == 1 || lidMode == 1 ||
+                   (sensorFresh && hingeAngle >= kLidOpenDegrees)) {
+            lidClosedLatch = false;
+        }
+
+        // ---- display mode and capture health --------------------------------
+        const uint32_t metricsWidth =
+            static_cast<uint32_t>(GetSystemMetrics(SM_CXSCREEN));
+        const uint32_t metricsHeight =
+            static_cast<uint32_t>(GetSystemMetrics(SM_CYSCREEN));
+        if (metricsWidth != 0 && metricsHeight != 0 &&
+            (metricsWidth != width || metricsHeight != height)) {
+            // The desktop moved to another output or resolution, so everything
+            // in hand is sized for the old mode: drop it and rebuild.
+            overlay.Show(false);
+            hasContent = false;
+            capture.Stop();
+            ++modeChanges;
+            safety.Reset();
+        }
+
+        // A suspend, a display power transition or a mode change all mean the
+        // frame in hand may be arbitrarily old.
+        if (overlay.ConsumeEnvironmentChange()) {
+            safety.Reset();
+        }
+
+        const bool ready = safety.Update(lidClosedLatch, overlay.DisplayOn(),
+                                         capture.Healthy(), sensorFresh,
+                                         sample.steadySeconds);
+
+        // ---- capture recovery -----------------------------------------------
+        // A duplication that came back DXGI_ERROR_ACCESS_LOST is dead and can
+        // only be replaced; retry at most once a second so a panel that is still
+        // off cannot be hammered.
+        if (!capture.Healthy() &&
+            sample.steadySeconds - lastRecoverySeconds >= 1.0) {
+            lastRecoverySeconds = sample.steadySeconds;
+            if (capture.TryRestart(device.Device())) {
+                terminal.Write("\ncapture restarted at " +
+                               std::to_string(capture.Width()) + "x" +
+                               std::to_string(capture.Height()) + "\n");
+            }
+        }
+
+        // The replacement can report a different mode than the chain was built
+        // for; follow it rather than drawing a mis-sized frame.
+        if (capture.Healthy() && capture.Width() != 0 && capture.Height() != 0 &&
+            (capture.Width() != width || capture.Height() != height)) {
+            const uint32_t newWidth = capture.Width();
+            const uint32_t newHeight = capture.Height();
+            overlay.Show(false);
+            hasContent = false;
+            overlay.Resize(newWidth, newHeight);
+            device.Resize(newWidth, newHeight);
+            renderer.Resize(newWidth, newHeight);
+            if (!CreateContentTexture(device.Device(), newWidth, newHeight, content)) {
+                terminal.Write(
+                    "\nERROR: could not resize the content texture; stopping.\n");
+                break;
+            }
+            width = newWidth;
+            height = newHeight;
+            parameters.eyeDistancePx = static_cast<float>(width) * 6.4f;
+            safety.Reset();
+        }
+
         // Past flat the pose cannot be resolved with a single IMU, so the effect
         // switches itself off and the desktop comes back untouched.
-        const bool effectWanted =
-            !pastFlat && angleDelta > 0.05 && tracker.Valid();
+        const bool effectWanted = ready && !pastFlat && angleDelta > 0.05 &&
+                                  tracker.Valid();
 
         // ---- snapshot policy, the single most important part of this loop ----
         //
@@ -282,29 +416,35 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // API captures the composed screen, so the shader would sample its last
         // result, and each frame would come out blurrier than the last until the
         // whole screen went black.
-        if (effectWanted && !lastEffectWanted) {
+        if (!effectWanted) {
+            // Fail closed.  Whatever is on screen while the environment is not
+            // trustworthy is a snapshot of unknown age, and the frame in hand
+            // stops matching the desktop the moment the desktop changes.
+            overlay.Show(false);
+            hasContent = false;
+            lastEffectWanted = false;
+        } else if (!lastEffectWanted) {
             // Hide first: a capture taken while the overlay is up would contain
             // the overlay itself.
             overlay.Show(false);
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-            for (int attempt = 0; attempt < 3; ++attempt) {
-                if (capture.AcquireFrame(150)) {
-                    capture.CopyFrameTo(device.Context(), content.Get());
-                    capture.ReleaseFrame();
-                    hasContent = true;
-                    ++captureCount;
-                    break;
-                }
-            }
+            hasContent = grabDesktop();
+            lastEffectWanted = true;
+        } else if (!hasContent) {
+            // An earlier attempt came back empty; keep asking while the effect
+            // wants to be visible.
+            hasContent = grabDesktop();
         }
-        lastEffectWanted = effectWanted;
 
-        overlay.Show(effectWanted);
-        // Another topmost window can steal the front slot; re-assert it
-        // periodically so the effect cannot end up hidden behind something.
-        if (effectWanted && (++loopCount % 120) == 0) {
-            overlay.BringToFront();
+        // Nothing is drawn without a frame that was captured for this pass: a
+        // stale texture is worse than no effect at all.
+        if (effectWanted && hasContent) {
+            overlay.Show(true);
+            // Another topmost window can steal the front slot; re-assert it
+            // periodically so the effect cannot end up hidden behind something.
+            if ((++loopCount % 120) == 0) {
+                overlay.BringToFront();
+            }
         }
         // Read the real window state rather than our own bookkeeping: if the
         // system refuses to show the window, the status line must say so.
@@ -336,15 +476,16 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // ---- status line --------------------------------------------------
         if (sample.steadySeconds - lastReportSeconds >= 0.25) {
             lastReportSeconds = sample.steadySeconds;
-            std::string line = "\r" + FormatLine(effectWanted ? "FOLD " : "idle ",
-                                                 hingeAngle, angleDelta,
-                                                 options.activationAngleDeg,
-                                                 lidMode, overlayVisible,
-                                                 hasContent, renderedFrames,
-                                                 captureCount);
-            if (line.size() < 140) {
-                line += std::string(140 - line.size(), ' ');
+            std::string line =
+                "\r" + FormatLine(effectWanted ? "FOLD " : "idle ", hingeAngle,
+                                  angleDelta, options.activationAngleDeg,
+                                  DisplaySafetyGate::Text(safety.Current()),
+                                  lidMode, overlayVisible, hasContent,
+                                  renderedFrames, captureCount);
+            if (line.size() < lastLineLength) {
+                line += std::string(lastLineLength - line.size(), ' ');
             }
+            lastLineLength = line.size();
             terminal.Write(line);
         }
 
@@ -373,7 +514,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     overlay.Destroy();
 
     terminal.Write("\nFold effect stopped. Frames rendered: " +
-                   std::to_string(renderedFrames) + "\n");
+                   std::to_string(renderedFrames) + ", captures: " +
+                   std::to_string(captureCount) + ", mode changes: " +
+                   std::to_string(modeChanges) + "\n");
     return 0;
 }
 

@@ -8,7 +8,7 @@
 | `duo-open` | MIT (Copyright (c) 2026 marcoazeem) | 仅作架构参考（overlay 生命周期、capture 流程）。未复制代码。 |
 | `iphone-duo` | MIT（代码与 SVG 素材）；Apple 模型/壁纸不受 MIT 覆盖 | 仅作视觉目标参考（投影/blur/darkening 的观感）。未复制代码或素材。 |
 | `iphone-duo-animation` | MIT (Copyright (c) 2026 Akash T) | 仅作视觉目标参考（折叠几何、曲面过渡）。未复制代码。 |
-| `lid-plane` (jh3y/lid-plane) | **GPL-3.0-or-later** | **仅作策略参考**（激活角语义、角度差驱动、按屏高归一化的模糊标定）。GPL 源码**未复制、未改写、未链接**；本项目为独立实现，见下文第 6 条。 |
+| `lid-plane` (jh3y/lid-plane) | **GPL-3.0-or-later** | **仅作策略参考**：激活角语义、角度差驱动、按屏高归一化的模糊标定、`DisplaySafetyGate`（合盖/显示器不可用/传感器失联时暂停并隐藏，恢复后等待稳定期）。GPL 源码**未复制、未改写、未链接**；本项目为独立实现，见下文第 6、7 条。 |
 
 ## 从参考实现中提炼、并在本项目中重新实现的概念
 
@@ -33,6 +33,15 @@
      apparent fixed angle`）。
    - 模糊标定：半径 ∝ `sin(delta)`，按屏高（每 1000 px）归一化，靠近铰链处保持清晰。
    - 以上仅为**策略与数学形式**；HLSL 实现、常量缓冲布局、采样方式均为本项目自行编写。
+7. **安全门 / fail-closed 生命周期**（来源：`lid-plane` 的 `DisplaySafetyGate` 与其 `update()` 中的
+   `lidClosed / builtInAvailable / sensorAvailable` 判定）
+   - 合盖（ACPI 盖子开关或角度阈值，带迟滞）、显示器电源关闭、duplication 失效、
+     传感器超过 1 s 无读数 → **暂停效果并移除 overlay**，而不是让它留在屏幕上；
+   - 全部恢复后需连续稳定 0.5 s 才允许重新抓屏（`recoveryDelay`）；
+   - 没有有效帧就不显示 overlay。
+   - Windows 侧实现完全不同：`RegisterPowerSettingNotification` +
+     `GUID_CONSOLE_DISPLAY_STATE` / `GUID_LIDSWITCH_STATE_CHANGE`、`WM_DISPLAYCHANGE`、
+     `IDXGIOutputDuplication` 的失效检测；`DisplaySafetyGate` 为纯逻辑类并带 `--selftest` 用例。
 
 以上概念在 `src\` 中的 Windows 实现（第二阶段）会以 HLSL 重新编写，不会复用 AGSL/Metal 源码。
 

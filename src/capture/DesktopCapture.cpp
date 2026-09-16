@@ -69,8 +69,16 @@ void DesktopCapture::Stop() {
     ReleaseFrame();
     m_duplication.Reset();
     m_frame.Reset();
+    m_lost = false;
     m_width = 0;
     m_height = 0;
+}
+
+bool DesktopCapture::TryRestart(ID3D11Device* device) {
+    if (Healthy()) {
+        return true;
+    }
+    return Start(device);
 }
 
 bool DesktopCapture::AcquireFrame(uint32_t timeoutMs) {
@@ -90,6 +98,19 @@ bool DesktopCapture::AcquireFrame(uint32_t timeoutMs) {
         return false;  // nothing changed on screen; not an error
     }
     if (FAILED(result)) {
+        // Everything else means the duplication is finished: the display mode
+        // changed, the panel was powered off, the secure desktop came up, or
+        // another capture took over.  Holding on to it and retrying forever is
+        // what leaves a stale frame on screen, so it is marked dead here and
+        // the caller has to call TryRestart().
+        m_lost = true;
+        m_duplication.Reset();
+
+        char text[160];
+        std::snprintf(text, sizeof(text),
+                      "AcquireNextFrame failed (hr=0x%08lX); the duplication is gone",
+                      static_cast<unsigned long>(result));
+        m_error = text;
         return false;
     }
 
