@@ -616,9 +616,12 @@ int wmain(int argc, wchar_t** argv) {
                         config.animationSnapThresholdProgress);
 
     // ---- debug window -----------------------------------------------------
+    // The fold window belongs to the estimator pipeline only; the orientation
+    // demo opens its own window, and creating both would leave an empty white
+    // "Dragonfly Fold Debug" window sitting behind the demo.
     dragonfly::DebugFoldWindow debugWindow;
     bool windowOpen = false;
-    if (config.debugWindowEnabled) {
+    if (config.debugWindowEnabled && !options.orientationDemo) {
         windowOpen = debugWindow.Create(L"Dragonfly Fold Debug",
                                         config.debugWindowWidth, config.debugWindowHeight);
         if (!windowOpen) {
@@ -628,10 +631,12 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     // ---- logging ---------------------------------------------------------
+    // The demo is a visual check, not a measurement session: it does not open a
+    // CSV, so running it does not litter the logs directory.
     dragonfly::SensorLogger logger;
     std::string logPath;
     std::filesystem::path logDirectory;
-    if (options.logging) {
+    if (options.logging && !options.orientationDemo) {
         logDirectory = executableDirectory / options.logDirectory;
         std::error_code directoryError;
         std::filesystem::create_directories(logDirectory, directoryError);
