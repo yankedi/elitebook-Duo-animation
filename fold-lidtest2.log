@@ -1,0 +1,734 @@
+====================================================================================================
+  HP Elite Dragonfly G2 - Dragonfly Sensor Diagnostic + Fold Estimator (v1)
+  Requested report interval: 16 ms
+  CSV log : (disabled)
+  Config  : C:\Users\26965\lib\elitebook-Duo-animation\src\build\Release\config\config.json
+  NOTE    : foldProgress is a VISUAL progress (0..1), not a measured angle.
+====================================================================================================
+
+  [1] STANDARD Windows.Devices.Sensors CHANNELS
+----------------------------------------------------------------------------------------------------
+  Accelerometer              PRESENT  event=yes
+      device id    : \\?\HID#Vid_8087&Pid_0AC2#6&13719565&0&0000#{c2fb0f5f-e2d2-4c78-bcd0-352a9582819d}\{00730000-0000-0000-0000-000000000000}
+      name         : ELITEBOOK
+      interval     : 16 ms / min 10 ms
+  Gyrometer                  PRESENT  event=yes
+      device id    : \\?\HID#Vid_8087&Pid_0AC2#6&13719565&0&0000#{09485f5a-759e-42c2-bd4b-a349b75c8643}\{00760000-0000-0001-0000-000000000000}
+      name         : ELITEBOOK
+      interval     : 16 ms / min 10 ms
+  OrientationSensor          PRESENT  event=yes
+      device id    : \\?\HID#Vid_8087&Pid_0AC2#6&b7e4c0&0&0000#{cdb5d8f7-3cfd-41c8-8542-cce622cf5d6e}\{008A0000-0000-0000-0000-000000000000}
+      name         : ELITEBOOK
+      interval     : 16 ms / min 10 ms
+  Inclinometer               PRESENT  event=yes
+      device id    : \\?\HID#Vid_8087&Pid_0AC2#6&b7e4c0&0&0000#{cdb5d8f7-3cfd-41c8-8542-cce622cf5d6e}\{008A0000-0000-0000-0000-000000000000}
+      name         : ELITEBOOK
+      interval     : 16 ms / min 10 ms
+  Compass                    PRESENT  event=yes
+      device id    : \\?\HID#Vid_8087&Pid_0AC2#6&b7e4c0&0&0000#{cdb5d8f7-3cfd-41c8-8542-cce622cf5d6e}\{008A0000-0000-0000-0000-000000000000}
+      name         : ELITEBOOK
+      interval     : 16 ms / min 10 ms
+  SimpleOrientationSensor    PRESENT  event=yes
+      device id    : \\?\SWD#SensorSwDeviceEnumerator#SDO#{00000000-0000-0000-FFFF-FFFFFFFFFFFF}#0000#5#{86a19291-0482-402c-bf4c-addac52b1c39}\{5298b528-05e7-466c-bb1d-3a03862756c9}
+      name         : ELITEBOOK - 鍓?
+      interval     : n/a
+  HingeAngleSensor           ABSENT   event=no 
+      note         : unavailable: HingeAngleSensor.GetDefaultAsync() returned null (no hinge-angle provider registered by HP/Intel on this machine)
+
+  [2] CUSTOM SENSOR (Lid Mode) CANDIDATES
+----------------------------------------------------------------------------------------------------
+  Lid Mode Sensor                             [lid] [guid]
+      id           : \\?\HID#Vid_8087&Pid_0AC2#6&1201cbe5&0&0000#{00000300-766d-4333-8262-27e82dd158b1}\{03000000-0000-0000-0000-000000000000}
+      openable     : yes
+      first reading:
+        {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 2 = 134340503995267460   (DateTime(100ns ticks))
+        {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 188 = 3281891062   (UInt32)
+        {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 187 = 0   (UInt32)
+        {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 161 = 1   (UInt32)
+        {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 162 = 0   (UInt32)
+        {B14C764F-07CF-41E8-9D82-EBE3D0776A6F} 5 = 768   (UInt32)
+
+  [3] LID MODE RESULT
+----------------------------------------------------------------------------------------------------
+  Sensor opened      : yes
+  device id          : \\?\HID#Vid_8087&Pid_0AC2#6&1201cbe5&0&0000#{00000300-766d-4333-8262-27e82dd158b1}\{03000000-0000-0000-0000-000000000000}
+  name               : Lid Mode Sensor
+  interval           : 16 ms / min 10 ms
+  max batch size     : 512
+  state property     : {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 161
+  current value      : 1
+  last reading properties:
+    {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 2 = 134340503995967460   (DateTime(100ns ticks))
+    {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 188 = 3281961062   (UInt32)
+    {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 187 = 0   (UInt32)
+    {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 161 = 1   (UInt32)
+    {C458F8A7-4AE8-4777-9607-2E9BDD65110A} 162 = 0   (UInt32)
+    {B14C764F-07CF-41E8-9D82-EBE3D0776A6F} 5 = 768   (UInt32)
+
+  [4] RAW HID DEVICE TREE (SetupAPI, independent of WinRT)
+----------------------------------------------------------------------------------------------------
+  HID interfaces present : 30   of which usage page 0x20 (Sensor): 0
+
+  Interface class: HID   (29 interfaces)
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\WACF4233&COL05\5&F64D3EE&0&0004
+        note        : CreateFile failed (error 32)
+    VID_8087 PID_0A1E  page 0x0001 usage 0x0080  in   2 B  (no product string)
+        instance    : HID\INTC816&COL03\3&D2322F2&0&0002
+    VID_8087 PID_0A1E  page 0x000C usage 0x0001  in   2 B  (no product string)
+        instance    : HID\INTC816&COL0A\3&D2322F2&0&0009
+    VID_8087 PID_0A1E  page 0x000C usage 0x0001  in   2 B  (no product string)
+        instance    : HID\INTC816&COL09\3&D2322F2&0&0008
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\VID_8087&PID_0AC2\6&1201CBE5&0&0000
+        note        : HidD_GetPreparsedData failed
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\VID_8087&PID_0AC2\6&262B460A&0&0000
+        note        : HidD_GetPreparsedData failed
+    VID_056A PID_4924  page 0xFF11 usage 0x0002  in  22 B  HIDI2C Device
+        instance    : HID\WACF4233&COL06\5&F64D3EE&0&0005
+    VID_8087 PID_0A1E  page 0x000C usage 0x0001  in   2 B  (no product string)
+        instance    : HID\INTC816&COL04\3&D2322F2&0&0003
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\SYNA30B6&COL01\5&37BFFDC7&0&0000
+        note        : CreateFile failed (error 5)
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\WACF4233&COL01\5&F64D3EE&0&0000
+        note        : CreateFile failed (error 32)
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\SYNA30B6&COL02\5&37BFFDC7&0&0001
+        note        : CreateFile failed (error 32)
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\INTC816&COL01\3&D2322F2&0&0000
+        note        : CreateFile failed (error 5)
+    VID_056A PID_4924  page 0x00FF usage 0x0002  in   6 B  HIDI2C Device
+        instance    : HID\WACF4233&COL07\5&F64D3EE&0&0006
+    VID_06CB PID_CD74  page 0x000D usage 0x000E  in   0 B  HIDI2C Device
+        instance    : HID\SYNA30B6&COL03\5&37BFFDC7&0&0002
+    VID_8087 PID_0A1E  page 0x000C usage 0x0001  in   2 B  (no product string)
+        instance    : HID\INTC816&COL05\3&D2322F2&0&0004
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\VID_8087&PID_0AC2\6&13719565&0&0000
+        note        : HidD_GetPreparsedData failed
+    VID_06CB PID_CD74  page 0xFF00 usage 0x0001  in  62 B  HIDI2C Device
+        instance    : HID\SYNA30B6&COL04\5&37BFFDC7&0&0003
+    VID_056A PID_4924  page 0xFF11 usage 0x0011  in  19 B  HIDI2C Device
+        instance    : HID\WACF4233&COL02\5&F64D3EE&0&0001
+    VID_056A PID_4924  page 0x000D usage 0x0001  in  15 B  HIDI2C Device
+        instance    : HID\WACF4233&COL08\5&F64D3EE&0&0007
+    VID_8087 PID_0A1E  page 0x000C usage 0x0001  in   2 B  (no product string)
+        instance    : HID\INTC816&COL06\3&D2322F2&0&0005
+    VID_056A PID_4924  page 0x000D usage 0x000E  in   0 B  HIDI2C Device
+        instance    : HID\WACF4233&COL03\5&F64D3EE&0&0002
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\WACF4233&COL09\5&F64D3EE&0&0008
+        note        : CreateFile failed (error 5)
+    VID_8087 PID_0A1E  page 0x000C usage 0x0001  in   2 B  (no product string)
+        instance    : HID\INTC816&COL07\3&D2322F2&0&0006
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\VID_8087&PID_0AC2\6&B7E4C0&0&0000
+        note        : HidD_GetPreparsedData failed
+    VID_056A PID_4924  page 0xFF14 usage 0x000E  in   0 B  HIDI2C Device
+        instance    : HID\WACF4233&COL04\5&F64D3EE&0&0003
+    VID_8087 PID_0A1E  page 0x0001 usage 0x000C  in   2 B  (no product string)
+        instance    : HID\INTC816&COL02\3&D2322F2&0&0001
+    VID_8087 PID_0A1E  page 0x000C usage 0x0001  in   2 B  (no product string)
+        instance    : HID\INTC816&COL08\3&D2322F2&0&0007
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\VID_8087&PID_0AC3\6&635F27&0&0000
+        note        : HidD_GetPreparsedData failed
+    VID_0001 PID_0001  page 0x0001 usage 0x000C  in   2 B  (no product string)
+        instance    : HID\HPQ6001\3&1F700816&0&0000
+
+  Interface class: 00000300-766d-4333-8262-27e82dd158b1   (1 interfaces)
+    VID_0000 PID_0000  page 0x0000 usage 0x0000  in   0 B  (no product string)
+        instance    : HID\VID_8087&PID_0AC2\6&1201CBE5&0&0000
+        note        : HidD_GetPreparsedData failed
+
+  (run with --hid-raw to also read one raw input report per sensor device)
+
+  [5] COMMANDS
+----------------------------------------------------------------------------------------------------
+  --seconds N     stop after N seconds (default: run until Ctrl+C)
+  --rate HZ       snapshot rate for console + CSV (default 50)
+  --report-ms MS  requested sensor report interval (default 16)
+  --log DIR       CSV directory (default: logs next to the executable)
+  --no-log        disable CSV logging
+  --enumerate     print this report and exit
+  --hid-raw       also read one raw input report per HID sensor
+  --no-window     do not open the debug fold window
+  --manual        start with the estimator in manual mode
+  --write-config  write the default config.json next to the executable
+  --selftest      run the estimator and safety-gate self tests
+  --orientation-demo  native counterpart of testyourdevices.com/gyroscope-test/
+  --fold-effect   show the live desktop folding as the lid moves
+  --dump-frames   save the captured desktop and rendered frames as BMP
+  --allow-display-off  let the display sleep while --fold-effect runs
+
+  Fold progress is a visual quantity; no physical angle is estimated.
+
+
+Fold effect armed.
+The desktop is left completely untouched at or above the activation
+angle.  Close the lid below it and the picture holds the activation
+angle -- keystoned and progressively blurred -- while the panel tilts.
+Open back above it and the desktop returns untouched.
+
+STOP: press [ESC] or [F10] -- these are read globally, so they work even
+      though the overlay holds the screen.  [Q] in this console also works.
+
+  display 1920x1080, 120 dpi -> eye distance 12288 px
+  activation 110 deg, blur 65/1000px, darken 0.015, max delta 60 deg
+  capture 1920x1080, DXGI_FORMAT 87, overlay 1920x1080
+  monitor power on (notify yes), lid switch unknown (notify yes), settle 0.12 s
+  display kept awake: yes
+
+Desktop frame captured; the effect is live.
+
+
+  [env] lid switch open        hinge  112.8
+
+idle   hinge  112.8   delta   -2.8 (act 110)   Waiting for display...       lid 1   overlay off   content yes   frames 0   grabs 0
+  [env] Ready                  hinge  112.8
+
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 0
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 0
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 0
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 1
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 1
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 1
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 2
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 2
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 2
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 2
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 3
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 3
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 3
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 3
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 4
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 4
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 4
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 4
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 5
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 5
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 5
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 5
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 6
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 6
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 6
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 6
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 7
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 7
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 7
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 8
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 8
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 8
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 8
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 9
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 9
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 9
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 10
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 10
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 10
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 10
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 11
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 11
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 11
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 11
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 12
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 12
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 12
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 12
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 13
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 13
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 13
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 14
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 14
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 14
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 14
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 15
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 15
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 15
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 16
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 16
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 16
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 16
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 17
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 17
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 17
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 17
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 18
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 18
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 18
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 19
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 19
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 19
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 19
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 20
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 20
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 20
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 21
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 21
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 21
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 21
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 22
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 22
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 22
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 23
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 23
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 23
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 23
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 24
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 24
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 24
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 25
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 25
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 25
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 26
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 26
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 26
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 26
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 27
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 27
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 27
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 27
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 28
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 28
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 28
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 29
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 29
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 29
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 29
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 30
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 30
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 30
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 30
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 31
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 31
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 31
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 32
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 32
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 32
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 32
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 33
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 33
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 33
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 33
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 34
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 34
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 34
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 34
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 35
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 35
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 35
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 35
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 36
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 36
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 36
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 37
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 37
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 37
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 37
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 38
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 38
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 38
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 38
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 39
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 39
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 39
+  [env] Paused - sensor unavailable hinge  112.8
+
+  [env] Waiting for display... hinge  112.8
+
+idle   hinge  112.8   delta   -2.8 (act 110)   Waiting for display...       lid 1   overlay off   content yes   frames 0   grabs 40
+  [env] Ready                  hinge  112.8
+
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 40
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 40
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 40
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 41
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 41
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 41
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 41
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 42
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 42
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 42
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 43
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 43
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 43
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 43
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 44
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 44
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 44
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 45
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 45
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 45
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 45
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 46
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 46
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 46
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 46
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 47
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 47
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 47
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 47
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 48
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 48
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 48
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 49
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 49
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 49
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 49
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 50
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 50
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 50
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 51
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 51
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 51
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 51
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 52
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 52
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 52
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 52
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 53
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 53
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 53
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 54
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 54
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 54
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 54
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 55
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 55
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 55
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 56
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 56
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 56
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 56
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 57
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 57
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 57
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 57
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 58
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 58
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 58
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 58
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 59
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 59
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 59
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 60
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 60
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 60
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 60
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 61
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 61
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 61
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 62
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 62
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 62
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 62
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 63
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 63
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 63
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 63
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 64
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 64
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 64
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 65
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 65
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 65
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 65
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 66
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 66
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 66
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 66
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 67
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 67
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 67
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 68
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 68
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 68
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 68
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 69
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 69
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 69
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 69
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 70
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 70
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 70
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 70
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 71
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 71
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 71
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 72
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 72
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 72
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 73
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 73
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 73
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 73
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 74
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 74
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 74
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 75
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 75
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 75
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 75
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 76
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 76
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 76
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 77
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 77
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 77
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 77
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 78
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 78
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 78
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 79
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 79
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 79
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 79
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 80
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 80
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 80
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 80
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 81
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 81
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 81
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 82
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 82
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 82
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 82
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 83
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 83
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 83
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 84
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 84
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 84
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 84
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 85
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 85
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 85
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 85
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 86
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 86
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 86
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 87
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 87
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 87
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 87
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 88
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 88
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 88
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 89
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 89
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 89
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 89
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 90
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 90
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 90
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 90
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 91
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 91
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 91
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 92
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 92
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 92
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 92
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 93
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 93
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 93
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 94
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 94
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 94
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 94
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 95
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 95
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 95
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 96
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 96
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 96
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 96
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 97
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 97
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 97
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 98
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 98
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 98
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 98
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 99
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 99
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 99
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 99
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 100
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 100
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 100
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 100
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 101
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 101
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 101
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 102
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 102
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 102
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 102
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 103
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 103
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 103
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 103
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 104
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 104
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 104
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 105
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 105
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 105
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 105
+  [env] Paused - sensor unavailable hinge  112.8
+
+  [env] Waiting for display... hinge  112.8
+
+  [env] Ready                  hinge  112.8
+
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 106
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 106
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 106
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 106
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 107
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 107
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 107
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 107
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 108
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 108
+  [env] Paused - sensor unavailable hinge  112.8
+
+  [env] Waiting for display... hinge  112.8
+
+idle   hinge  112.8   delta   -2.8 (act 110)   Waiting for display...       lid 1   overlay off   content yes   frames 0   grabs 108
+  [env] Ready                  hinge  112.8
+
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 109
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 110
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 110
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 110
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 111
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 111
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 111
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 111
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 112
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 112
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 112
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 113
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 113
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 113
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 113
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 114
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 114
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 114
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 114
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 115
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 115
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 115
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 116
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 116
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 116
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 116
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 117
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 117
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 117
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 117
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 118
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 118
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 118
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 119
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 119
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 119
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 119
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 120
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 120
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 120
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 120
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 121
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 121
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 121
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 121
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 122
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 122
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 122
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 123
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 123
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 123
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 123
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 124
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 124
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 124
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 124
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 125
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 125
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 125
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 126
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 126
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 126
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 126
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 127
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 127
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 127
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 127
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 128
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 128
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 128
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 129
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 129
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 129
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 129
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 130
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 130
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 130
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 130
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 131
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 131
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 131
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 132
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 132
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 132
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 132
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 133
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 133
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 133
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 133
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 134
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 134
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 134
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 135
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 135
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 135
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 135
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 136
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 136
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 136
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 136
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 137
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 137
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 137
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 138
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 138
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 138
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 138
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 139
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 139
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 139
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 139
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 140
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 140
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 140
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 140
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 141
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 141
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 141
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 142
+idle   hinge  112.8   delta   -2.8 (act 110)   Ready                        lid 1   overlay off   content yes   frames 0   grabs 142
+Fold effect stopped. Frames rendered: 0, captures: 142, mode changes: 0

@@ -153,13 +153,31 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     DisplaySafetyGate safety;
     safety.SetRecoveryDelay(options.recoverySettleSeconds);
 
-    // Keep the panel powered while the effect is running.  Without this the
-    // idle timeout blanks it, and the first thing the user sees after opening
-    // the lid is the blank panel waking up -- the effect cannot be earlier than
-    // the panel is.  Cleared on every exit path at the end of this function.
-    if (options.keepDisplayAwake) {
-        SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
-    }
+    // Execution-state requests.  Held with ES_CONTINUOUS so they stay in force
+    // between calls, and re-issued only when the combination actually changes.
+    //   - the panel is kept powered while the effect runs, so the idle timeout
+    //     never blanks it and there is nothing to wake up;
+    //   - the system is kept out of Modern Standby while the lid is shut (opt
+    //     in), because a resume costs far more than a panel power-on.
+    bool displayHeld = false;
+    bool systemHeld = false;
+    auto applyPowerRequests = [&](bool lidClosed) {
+        const bool wantDisplay = options.keepDisplayAwake;
+        const bool wantSystem = options.keepSystemAwake && lidClosed;
+        if (wantDisplay == displayHeld && wantSystem == systemHeld) {
+            return;
+        }
+        displayHeld = wantDisplay;
+        systemHeld = wantSystem;
+        DWORD flags = ES_CONTINUOUS;
+        if (displayHeld) {
+            flags |= ES_DISPLAY_REQUIRED;
+        }
+        if (systemHeld) {
+            flags |= ES_SYSTEM_REQUIRED;
+        }
+        SetThreadExecutionState(flags);
+    };
 
     terminal.Write(
         "\nFold effect armed.\n"
@@ -177,7 +195,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   "  activation %.0f deg, blur %.0f/1000px, darken %.3f, max delta %.0f deg\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
                   "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
-                  "  display kept awake: %s\n\n",
+                  "  claim keep-awake: display %s, system-while-closed %s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
@@ -187,7 +205,8 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   initialLidSwitch < 0 ? "unknown"
                                        : (initialLidSwitch != 0 ? "open" : "closed"),
                   overlay.LidNotifyActive() ? "yes" : "NO", safety.RecoveryDelay(),
-                  options.keepDisplayAwake ? "yes" : "no");
+                  options.keepDisplayAwake ? "yes" : "no",
+                  options.keepSystemAwake ? "yes" : "NO");
     terminal.Write(setup);
 
     // ---- prime the first frame -------------------------------------------
@@ -370,6 +389,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                    (sensorFresh && hingeAngle >= kLidOpenDegrees)) {
             lidClosedLatch = false;
         }
+        applyPowerRequests(lidClosedLatch);
 
         // ---- environment transition log --------------------------------------
         // The gate is all about timing, and the 0.25 s status line is
@@ -584,10 +604,8 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     }
 
     // ---- shutdown ---------------------------------------------------------
-    if (options.keepDisplayAwake) {
-        // Hand the display's idle timeout back to the system.
-        SetThreadExecutionState(ES_CONTINUOUS);
-    }
+    // Hand the display and system idle timeouts back to Windows.
+    SetThreadExecutionState(ES_CONTINUOUS);
     overlay.Show(false);
     capture.Stop();
     renderer.Destroy();

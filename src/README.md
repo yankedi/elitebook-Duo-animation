@@ -505,6 +505,29 @@ gate self test: 19 checks, 0 mismatches -> PASS
 | `eyeDistancePx` | 12 288 | 视点到内容平面的距离（= 6.4 × 屏宽），保持投影接近恒等 |
 | `recoverySettleSeconds` | 0.12 | 环境恢复后到允许效果重新出现之间的稳定期（参考实现 0.5 s，对笔记本开盖太慢） |
 | `keepDisplayAwake` | true | 运行期间阻止空闲超时熄灭屏幕；`--allow-display-off` 关闭 |
+| `keepSystemAwake` | false | 合盖期间阻止进入现代待机（S0ix）；`--keep-system-awake` 打开，见下 |
+
+### 关于"开盖后亮屏慢"
+
+慢的是**面板点亮**（display power 0→1）或**现代待机恢复**（S0ix resume），不是效果本身。
+用户态能做的只有"别让它灭掉"，于是：
+
+- `ES_DISPLAY_REQUIRED`（默认开）：空闲超时不再熄灭屏幕 → 开盖时没有需要唤醒的面板。
+  本机实测空闲超时为交流 60 分钟 / 电池 4 分钟。
+- `ES_SYSTEM_REQUIRED`（`--keep-system-awake`，默认关）：合盖期间阻止进入现代待机。
+  本机 `powercfg /a` 显示 **S3 不可用**，只有 S0 低功耗空闲（现代待机），
+  而现代待机恢复要走固件与驱动，代价远高于面板点亮本身。
+  代价是合盖期间机器完全不睡（耗电、发热），所以默认关闭。
+- 如果平台因为**盖子本身**而关掉了面板（由 EC/固件决定，Windows 无法加速），
+  用户态无解；此时靠 0.12 s 稳定期覆盖。
+
+另外，本机当前电源方案是 OEM 的 `HP Optimized (Modern Standby)`，
+`powercfg /q` 在两个方案里都查不到 `LIDACTION`（合盖操作由 HP 托管）。
+要让合盖后机器绝不进现代待机，除了上面的开关，也可以直接把睡眠超时设为"从不"：
+
+```powershell
+powercfg /change standby-timeout-ac 0     # 交流电下永不自动睡眠
+```
 
 ### 实测
 

@@ -91,6 +91,17 @@ struct FoldEffectOptions {
     // because the lid itself was shut, no user-mode program can hurry that up,
     // and the settle period above is what covers the rest.
     bool keepDisplayAwake = true;
+
+    // Hold ES_SYSTEM_REQUIRED while the lid is shut, so the machine cannot drop
+    // into Modern Standby (S0 low power idle) behind a closed lid.
+    //
+    // Coming out of Modern Standby costs a second or more of firmware and driver
+    // resume before the panel has any chance to light up, which is the other
+    // half of "the screen comes back late".  Off by default: while this is held
+    // the machine will not sleep at all with the lid shut, which is a real
+    // battery and thermals trade -- opting in should be a decision, not a
+    // surprise.
+    bool keepSystemAwake = false;
 };
 
 // Returns 0 on success, non-zero when the effect could not be started.

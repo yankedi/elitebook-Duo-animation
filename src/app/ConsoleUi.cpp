@@ -374,6 +374,7 @@ std::string FormatStartupReport(const std::vector<ChannelInfo>& channels,
     out += Line("  --fold-effect   show the live desktop folding as the lid moves");
     out += Line("  --dump-frames   save the captured desktop and rendered frames as BMP");
     out += Line("  --allow-display-off  let the display sleep while --fold-effect runs");
+    out += Line("  --keep-system-awake  block Modern Standby while the lid is shut");
     out += Line("");
     out += Line("  Fold progress is a visual quantity; no physical angle is estimated.");
     out += Line("");
