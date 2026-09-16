@@ -36,6 +36,9 @@ public:
     // Valid between a successful AcquireFrame() and ReleaseFrame().
     ID3D11Texture2D* FrameTexture() const { return m_frame.Get(); }
 
+    // Format of the captured frames, for diagnostics.
+    DXGI_FORMAT Format() const { return m_format; }
+
     // Copies the acquired frame into a caller-owned texture, so its contents
     // survive ReleaseFrame().  The fold shader needs a stable texture to sample
     // while the lid keeps moving, and the duplication API requires the frame to
@@ -56,6 +59,7 @@ private:
     bool m_acquired = false;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
+    DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
     std::string m_error;
 };
 

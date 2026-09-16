@@ -29,6 +29,8 @@ public:
     ID3D11Device* Device() const { return m_device.Get(); }
     ID3D11DeviceContext* Context() const { return m_context.Get(); }
     ID3D11RenderTargetView* BackBuffer() const { return m_backBuffer.Get(); }
+    // The back buffer texture itself, for cases that need to copy out of it.
+    ID3D11Texture2D* BackBufferTexture() const { return m_backBufferTexture.Get(); }
 
     uint32_t Width() const { return m_width; }
     uint32_t Height() const { return m_height; }
@@ -40,6 +42,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_context;
     Microsoft::WRL::ComPtr<IDXGISwapChain> m_swapChain;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_backBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_backBufferTexture;
 
     uint32_t m_width = 0;
     uint32_t m_height = 0;

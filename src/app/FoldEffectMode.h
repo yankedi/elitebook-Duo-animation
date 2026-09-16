@@ -39,6 +39,11 @@ struct FoldEffectOptions {
 
     // Stop after this many seconds (0 = run until stopped).
     double seconds = 0.0;
+
+    // Save the captured desktop and the rendered result as BMP files.  Used to
+    // inspect what the shader actually produced: GDI screen captures cannot see
+    // D3D-rendered content, so this is the only reliable view.
+    bool dumpFrames = false;
 };
 
 // Returns 0 on success, non-zero when the effect could not be started.

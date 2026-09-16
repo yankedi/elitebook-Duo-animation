@@ -61,6 +61,7 @@ bool DesktopCapture::Start(ID3D11Device* device) {
     m_duplication->GetDesc(&description);
     m_width = description.ModeDesc.Width;
     m_height = description.ModeDesc.Height;
+    m_format = description.ModeDesc.Format;
     return true;
 }
 
@@ -114,7 +115,14 @@ void DesktopCapture::CopyFrameTo(ID3D11DeviceContext* context,
     if (!m_acquired || !m_frame || !destination || !context) {
         return;
     }
+
     context->CopyResource(destination, m_frame.Get());
+
+    // Submit immediately.  D3D11 records commands asynchronously, and the
+    // duplication API is free to overwrite its texture the moment the frame is
+    // released -- without this flush the copy can lose the race and the
+    // destination ends up black or half-updated.
+    context->Flush();
 }
 
 } // namespace dragonfly

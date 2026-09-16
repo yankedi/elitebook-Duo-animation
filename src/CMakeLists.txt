@@ -120,6 +120,7 @@ add_executable(DragonflySensorDiag
     graphics/D3DDevice.cpp
     graphics/DebugFoldWindow.cpp
     graphics/FoldRenderer.cpp
+    graphics/FrameDump.cpp
     graphics/OrientationDemoWindow.cpp
     graphics/OverlayWindow.cpp
     hinge/HingeEstimator.cpp

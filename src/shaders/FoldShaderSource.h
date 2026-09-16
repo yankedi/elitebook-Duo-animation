@@ -115,19 +115,37 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
 
     const float radius = blurSpread * gap;
 
-    // The whole kernel misses the content: nothing to see through the glass.
-    if (hit.x < -radius || hit.y < -radius ||
-        hit.x > resolution.x + radius || hit.y > resolution.y + radius)
+    // Frosted glass absorbs light in proportion to how much it scatters.
+    //
+    // The reference constant (0.015 per pixel of radius) was tuned on a 70 mm
+    // panel where the largest kernel is only ~36 px.  A 1080p laptop panel
+    // produces a ~92 px kernel at the same angle, and 0.015 * 92 would drive
+    // the whole frame to black.  The floor keeps the absorption readable while
+    // staying faithful to the "dimming grows with scattering" behaviour.
+    const float atten = max(1.0 - darkening * radius, 0.35);
+
+    // Clamp the sampled point to the content plane.  The projection magnifies
+    // the frame by t = eye / (eye - gap), so near the hinge the ray can land
+    // outside the captured desktop; clamping smears the edge pixels instead of
+    // dropping to black, which is both what glass does and what keeps the frame
+    // readable.  The reference shaders return black here -- fine for a 70 mm
+    // phone at 45 degrees, but on a 1080p panel it costs a third of the frame.
+    const float2 maxCoord = resolution - 1.0;
+    const float clampRadius = max(radius, 1.0);
+    const float2 lowBound = -clampRadius;
+    const float2 highBound = maxCoord + clampRadius;
+
+    if (hit.x < lowBound.x || hit.y < lowBound.y ||
+        hit.x > highBound.x || hit.y > highBound.y)
     {
+        // So far outside that even the smeared edge is meaningless.
         return float4(0.0, 0.0, 0.0, 1.0);
     }
 
-    // Frosted glass absorbs light in proportion to how much it scatters.
-    const float atten = max(1.0 - darkening * radius, 0.0);
-
     if (radius < 0.5)
     {
-        return float4(SampleContent(hit).rgb * atten, 1.0);
+        return float4(SampleContent(clamp(hit, float2(0.0, 0.0), maxCoord)).rgb * atten,
+                      1.0);
     }
 
     // Vogel disk with a per-pixel rotation, so banding reads as glass grain.
@@ -145,7 +163,9 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
         const float w = 1.0 - step(tapsF, fi);
         const float r = radius * sqrt((fi + 0.5) / tapsF);
         const float a = fi * GOLDEN_ANGLE + rotation;
-        sum += SampleContent(hit + r * float2(cos(a), sin(a))).rgb * w;
+        const float2 tap = clamp(hit + r * float2(cos(a), sin(a)),
+                                 float2(0.0, 0.0), maxCoord);
+        sum += SampleContent(tap).rgb * w;
         weightSum += w;
     }
 

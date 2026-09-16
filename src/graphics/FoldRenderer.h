@@ -33,11 +33,11 @@ struct FoldEffectParameters {
     // Light lost per pixel of blur radius (reference: 0.015).
     float darkening = 0.015f;
 
-    // Largest pane tilt handed to the shader.  The physical angle keeps growing
-    // below 90 degrees, but the shader saturates, so duo-open maps the visible
-    // range onto a fixed tilt instead of clamping (it uses 45 degrees).  The
-    // same idea is used here with a slightly larger cap.
-    float maxTiltDegrees = 62.0f;
+    // Largest pane tilt handed to the shader.  duo-open maps its hinge range
+    // onto 0..45 degrees for exactly this reason: past that the projection
+    // magnification grows faster than the effect gains, and the frame starts
+    // leaving the content plane.  45 degrees is the reference value.
+    float maxTiltDegrees = 45.0f;
 
     // A laptop lid hinges on the bottom edge of the panel.
     bool hingeFromTop = false;

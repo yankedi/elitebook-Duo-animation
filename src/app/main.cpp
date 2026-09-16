@@ -72,6 +72,7 @@ struct Options {
     bool selfTest = false;
     bool orientationDemo = false;
     bool foldEffect = false;
+    bool dumpFrames = false;
     bool help = false;
 };
 
@@ -193,6 +194,8 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             options.orientationDemo = true;
         } else if (argument == L"--fold-effect") {
             options.foldEffect = true;
+        } else if (argument == L"--dump-frames") {
+            options.dumpFrames = true;
         } else {
             return false;
         }
@@ -699,7 +702,8 @@ int wmain(int argc, wchar_t** argv) {
         options.reportIntervalMs, options.hidRaw);
     terminal.Write(report);
 
-    if (options.logging) {
+    if (options.logging && !logDirectory.empty() && !options.orientationDemo &&
+        !options.foldEffect) {
         const std::filesystem::path reportPath = logDirectory / "startup-report.txt";
         WriteTextFile(reportPath, report);
         terminal.Write("Report written to: " + reportPath.string() + "\n");
@@ -726,6 +730,7 @@ int wmain(int argc, wchar_t** argv) {
     if (options.foldEffect) {
         dragonfly::FoldEffectOptions foldOptions;
         foldOptions.seconds = options.seconds;
+        foldOptions.dumpFrames = options.dumpFrames;
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();

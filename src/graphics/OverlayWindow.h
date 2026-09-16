@@ -28,6 +28,10 @@ public:
     void Destroy();
 
     void Show(bool visible);
+    // Re-asserts the topmost position.  Another topmost window can take the
+    // front slot while the overlay is hidden, and the overlay then sits behind
+    // it -- which looks exactly like "the effect does nothing".
+    void BringToFront();
     bool IsShown() const { return m_shown; }
 
     // Drains the message queue; returns false once the window is gone.

@@ -73,12 +73,20 @@ void OverlayWindow::Show(bool visible) {
     if (visible) {
         // SW_SHOWNOACTIVATE keeps the foreground application's focus.
         ShowWindow(m_hwnd, SW_SHOWNOACTIVATE);
-        SetWindowPos(m_hwnd, HWND_TOPMOST, 0, 0, static_cast<int>(m_width),
-                     static_cast<int>(m_height), SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        BringToFront();
     } else {
         ShowWindow(m_hwnd, SW_HIDE);
     }
     m_shown = visible;
+}
+
+void OverlayWindow::BringToFront() {
+    if (!m_hwnd) {
+        return;
+    }
+    SetWindowPos(m_hwnd, HWND_TOPMOST, 0, 0, static_cast<int>(m_width),
+                 static_cast<int>(m_height),
+                 SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_NOMOVE | SWP_NOSIZE);
 }
 
 bool OverlayWindow::PumpMessages() {

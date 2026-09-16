@@ -16,6 +16,7 @@ bool D3DDevice::CreateBackBuffer() {
     if (FAILED(m_swapChain->GetBuffer(0, IID_PPV_ARGS(&backBufferTexture)))) {
         return false;
     }
+    m_backBufferTexture = backBufferTexture;
     if (FAILED(m_device->CreateRenderTargetView(backBufferTexture.Get(), nullptr,
                                                 &m_backBuffer))) {
         return false;
@@ -92,6 +93,7 @@ void D3DDevice::Resize(uint32_t width, uint32_t height) {
 
 void D3DDevice::Destroy() {
     m_backBuffer.Reset();
+    m_backBufferTexture.Reset();
     m_swapChain.Reset();
     m_context.Reset();
     m_device.Reset();
