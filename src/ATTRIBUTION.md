@@ -8,6 +8,7 @@
 | `duo-open` | MIT (Copyright (c) 2026 marcoazeem) | 仅作架构参考（overlay 生命周期、capture 流程）。未复制代码。 |
 | `iphone-duo` | MIT（代码与 SVG 素材）；Apple 模型/壁纸不受 MIT 覆盖 | 仅作视觉目标参考（投影/blur/darkening 的观感）。未复制代码或素材。 |
 | `iphone-duo-animation` | MIT (Copyright (c) 2026 Akash T) | 仅作视觉目标参考（折叠几何、曲面过渡）。未复制代码。 |
+| `lid-plane` (jh3y/lid-plane) | **GPL-3.0-or-later** | **仅作策略参考**（激活角语义、角度差驱动、按屏高归一化的模糊标定）。GPL 源码**未复制、未改写、未链接**；本项目为独立实现，见下文第 6 条。 |
 
 ## 从参考实现中提炼、并在本项目中重新实现的概念
 
@@ -23,6 +24,15 @@
    - 用作低成本 disk blur，抖动避免 banding。
 5. **on-change 传感器 + overlay 生命周期**
    - 运动时显示 overlay，稳定后隐藏，避免长期用透明顶层窗口覆盖桌面。
+
+6. **激活角 + 角度差驱动**（来源：`lid-plane` 的 README 与 `EffectDefaults` / `MotionPolicy`）
+   - 效果不以「绝对屏幕角」为参数，而是以「低于激活角多少」为参数：
+     `delta = 激活角 - 屏幕角`。激活角以上桌面完全不处理（正常使用），
+     低于激活角才开始出现效果，delta 越大越强。
+   - 效果语义：内容保持激活角，物理屏幕绕它倾斜（`holds your desktop at an
+     apparent fixed angle`）。
+   - 模糊标定：半径 ∝ `sin(delta)`，按屏高（每 1000 px）归一化，靠近铰链处保持清晰。
+   - 以上仅为**策略与数学形式**；HLSL 实现、常量缓冲布局、采样方式均为本项目自行编写。
 
 以上概念在 `src\` 中的 Windows 实现（第二阶段）会以 HLSL 重新编写，不会复用 AGSL/Metal 源码。
 

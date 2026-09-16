@@ -57,14 +57,14 @@ int PollConsoleKey() {
     return key;
 }
 
-std::string FormatLine(const char* phase, double hingeAngle, double progress,
-                       double tiltDegrees, int lidMode, bool overlayVisible,
+std::string FormatLine(const char* phase, double hingeAngle, double angleDelta,
+                       double activationAngle, int lidMode, bool overlayVisible,
                        bool hasContent, uint64_t frames, uint64_t captures) {
     char buffer[300];
     std::snprintf(buffer, sizeof(buffer),
-                  "%s  hinge %6.1f   progress %5.3f   tilt %5.1f   lid %s   "
+                  "%s  hinge %6.1f   delta %6.1f (act %.0f)   lid %s   "
                   "overlay %s   content %-3s   frames %llu   grabs %llu",
-                  phase, hingeAngle, progress, tiltDegrees,
+                  phase, hingeAngle, angleDelta, activationAngle,
                   lidMode < 0 ? "--" : std::to_string(lidMode).c_str(),
                   overlayVisible ? "ON " : "off", hasContent ? "yes" : "NO",
                   static_cast<unsigned long long>(frames),
@@ -112,21 +112,19 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         return 1;
     }
 
-    // ---- fold shader ------------------------------------------------------
-    // These are the reference project's numbers, kept rather than re-derived.
-    //
-    // Duo-animation ships eyeDistance = 450 mm against a 70 mm panel: that is
-    // 6.4x the panel width, and the ratio is what matters.  It holds the
-    // projection magnification
-    //     t = eyeDistance / (eyeDistance - gap)
-    // near 1, so the effect reads as frosted glass rather than as a magnified
-    // image.  Using the 450 mm literally on a 300 mm-wide laptop panel gives
-    // 1.1x width instead of 6.4x, magnification climbs past 1.5, and a third of
-    // the frame is projected off the plane and comes back black.
+    // ---- effect shader ----------------------------------------------------
+    // Strategy and constants from lid-plane (jh3y/lid-plane, GPL-3.0-or-later):
+    //   * the effect is driven by how far the lid has closed below an activation
+    //     angle (110 degrees), not by the absolute hinge angle;
+    //   * the blur radius is normalised per 1000 px of display height so the
+    //     look does not change with resolution;
+    //   * the projection keeps the content near identity so the illusion is
+    //     "the picture holds its angle while the panel tilts".
     FoldEffectParameters parameters;
-    parameters.blurSpread = options.blurSpread;
+    parameters.maxDeltaDegrees = options.maxDeltaDegrees;
+    parameters.blurStrength = options.blurStrength;
     parameters.darkening = options.darkening;
-    parameters.maxTiltDegrees = options.maxTiltDegrees;
+    // Keeps the ray-plane projection near identity; see FoldRenderer.h.
     parameters.eyeDistancePx = static_cast<float>(width) * 6.4f;
 
     const UINT dpi = GetDpiForWindow(overlay.Handle());
@@ -142,17 +140,21 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
 
     terminal.Write(
         "\nFold effect armed.\n"
-        "The overlay appears only while the lid is moving and is removed once the\n"
-        "effect resolves, so a settled desktop is never covered.\n"
+        "The desktop is left completely untouched at or above the activation\n"
+        "angle.  Close the lid below it and the picture holds the activation\n"
+        "angle -- keystoned and progressively blurred -- while the panel tilts.\n"
+        "Open back above it and the desktop returns untouched.\n"
         "\n"
         "STOP: press [ESC] or [F10] -- these are read globally, so they work even\n"
         "      though the overlay holds the screen.  [Q] in this console also works.\n\n");
     char setup[400];
     std::snprintf(setup, sizeof(setup),
-                  "  display %ux%u, %u dpi -> eye distance %.0f px, blur %.3f, darken %.3f\n"
+                  "  display %ux%u, %u dpi -> eye distance %.0f px\n"
+                  "  activation %.0f deg, blur %.0f/1000px, darken %.3f, max delta %.0f deg\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
-                  parameters.blurSpread, parameters.darkening,
+                  options.activationAngleDeg, parameters.blurStrength,
+                  parameters.darkening, parameters.maxDeltaDegrees,
                   capture.Width(), capture.Height(), static_cast<int>(capture.Format()),
                   width, height);
     terminal.Write(setup);
@@ -253,13 +255,20 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         const double tiltDegrees = tracker.TiltDegrees();
         const double hingeAngle =
             pastFlat ? (180.0 + tiltDegrees) : (180.0 - tiltDegrees);
-        const double progress =
-            pastFlat ? 1.0 : std::clamp(hingeAngle / 180.0, 0.0, 1.0);
 
-        // ---- decide whether the effect should be on screen ----------------
+        // ---- the effect belongs to the act of closing ----------------------
+        // Keyed to how far BELOW the activation angle the lid has come, not to
+        // the absolute hinge angle.  At or above the activation angle a laptop
+        // is simply being used and the desktop must stay untouched; the effect
+        // is reserved for the act of closing, where it produces the illusion
+        // that the picture holds its angle while the panel tilts around it.
+        const double angleDelta =
+            static_cast<double>(options.activationAngleDeg) - hingeAngle;
+
         // Past flat the pose cannot be resolved with a single IMU, so the effect
         // switches itself off and the desktop comes back untouched.
-        const bool effectWanted = progress < 0.999 && tracker.Valid();
+        const bool effectWanted =
+            !pastFlat && angleDelta > 0.05 && tracker.Valid();
 
         // ---- snapshot policy, the single most important part of this loop ----
         //
@@ -305,7 +314,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             device.BeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
             renderer.Render(device.Context(), content.Get(),
                             device.BackBuffer(),
-                            static_cast<float>(hingeAngle), parameters);
+                            static_cast<float>(angleDelta), parameters);
 
             // Dump before Present: with a DISCARD swap chain the back buffer
             // contents are undefined once it has been presented.
@@ -327,11 +336,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // ---- status line --------------------------------------------------
         if (sample.steadySeconds - lastReportSeconds >= 0.25) {
             lastReportSeconds = sample.steadySeconds;
-            const double tiltShown =
-                FoldRenderer::TiltDegreesForHinge(static_cast<float>(hingeAngle),
-                                                  parameters);
             std::string line = "\r" + FormatLine(effectWanted ? "FOLD " : "idle ",
-                                                 hingeAngle, progress, tiltShown,
+                                                 hingeAngle, angleDelta,
+                                                 options.activationAngleDeg,
                                                  lidMode, overlayVisible,
                                                  hasContent, renderedFrames,
                                                  captureCount);

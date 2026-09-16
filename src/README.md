@@ -339,15 +339,31 @@ X 轴是**零均值**噪声（不是偏置），因此中值滤波 + 静止冻�
 .\build\Release\DragonflySensorDiag.exe --fold-effect
 ```
 
-屏幕开合时**桌面本身**跟着产生折叠变形，停止运动后恢复原样。
+屏幕合到**激活角（110°）以下**时，桌面保持激活角的姿态并逐渐模糊；开回激活角以上，桌面完全不受影响。
+
+### 策略来源：lid-plane
+
+效果语义取自 `jh3y/lid-plane`（GPL-3.0，**仅策略参考，未复制代码**）：
+
+> *"holds your desktop at an apparent fixed angle and progressively blurs it as you close the lid below 110°. Open it above that angle and your desktop is untouched."*
+
+| 屏幕角 | 行为 |
+|---|---|
+| **> 110°** | **桌面完全不处理**（这就是正常使用的姿态） |
+| **= 110°** | 效果从零开始 |
+| **< 110°** | `delta = 110° - hingeAngle` 越大，效果越强（正在合盖） |
+
+关键点是**零点在激活角而不是 180°**：笔记本不会、也不需要合到 180°；
+180° 只是「摊平」的边界，而效果属于**合盖这个动作**。
+之前把零点放在 180°，结果是正常使用时就有模糊、而合盖方向反而越来越"干净"。
 
 ### 数据流
 
 ```
-OrientationSensor → hingeAngle → foldProgress
+OrientationSensor → hingeAngle → delta = 110° - hingeAngle
         │
-        ├─ progress < 1 → 抓屏 → 折叠 shader → overlay 显示
-        └─ progress = 1 → 隐藏 overlay，完全停止渲染
+        ├─ delta > 0 → 抓屏（仅一次）→ 折叠 shader → overlay 显示
+        └─ delta ≤ 0 → 隐藏 overlay，完全停止渲染
 ```
 
 ### 组成
@@ -361,13 +377,13 @@ OrientationSensor → hingeAngle → foldProgress
 
 ### Shader 模型
 
-移植自 Duo-animation / duo-open 共用的 **ray-plane** 模型：
+ray-plane 模型（`Duo-animation` / `duo-open` 共用）+ lid-plane 的**模糊标定**：
 
 ```
-固定的内容平面（捕获的桌面）
+固定的内容平面（捕获的桌面，保持激活角的姿态）
         ↑
         │   逐像素：眼睛 → 玻璃点 → 延伸到平面求交
-   [玻璃]│   模糊半径 ∝ 玻璃到平面的间隙
+   [玻璃]│   模糊半径 ∝ sin(delta)，按屏高归一化
   ╱     │   变暗 ∝ 模糊半径（散射吸收）
  ╱      │   卷积核完全错过内容 → 黑色
 ────────┴──────── 铰链线（面板底边）
@@ -377,37 +393,52 @@ OrientationSensor → hingeAngle → foldProgress
 
 ### 角度映射
 
-| hingeAngle | tilt | 效果 |
+| hingeAngle | delta | 效果 |
 |---|---|---|
-| 180° | 0° | 旁路 shader，桌面原样通过 |
-| 120° | 41° | 轻微透视压缩 + 边缘模糊 |
-| 90° | 62° | 满量程（参考 duo-open 的饱和处理） |
-| < 90° | 62° | 保持满量程直到合盖 |
+| 140° | −30° | 旁路 shader，桌面原样通过 |
+| **110°** | **0°** | **临界点：效果从零开始** |
+| 100° | 10° | 轻微透视压缩 + 顶部模糊 |
+| 50° | 60° | 满量程（`maxDeltaDegrees` 上限） |
+| < 50° | 60° | 保持满量程直到合盖 |
 
-180° 时**直接旁路**，所以效果会干净地消失，不会残留一层淡模糊。
+`delta ≤ 0` 时**直接旁路**，所以正常使用时不会有任何残留模糊；
+越过摊平（Lid Mode 3+）同样关闭效果。
+
+### 模糊标定
+
+```
+radius = blurStrength × smoothstep(0.08, 1.0, height) × sin(delta) × 屏高/1000
+```
+
+- `height = 1 - uv.y`：**0 在屏幕顶部，1 在铰链处**
+- `smoothstep(0.08, 1.0, …)`：靠近铰链的最后一段保持清晰（参考 lid-plane）
+- 按屏高归一化 → 换分辨率不会改变观感
 
 ### 生命周期
 
-- `progress < 1` 时显示 overlay 并渲染；`progress = 1` 时**隐藏并完全停止渲染**（空闲 CPU 接近 0）
+- `delta > 0` 时显示 overlay 并渲染；否则**隐藏并完全停止渲染**（空闲 CPU 接近 0）
 - overlay 为 `WS_EX_TRANSPARENT`，鼠标可穿透，不影响正常操作
-- 越过摊平（Lid Mode 3+）即关闭效果
+- 每次进入效果只抓**一次**屏（先隐藏 overlay 再抓），避免 shader 采样自身输出形成 feedback loop
+- `[ESC]` / `[F10]` 全局退出（`GetAsyncKeyState`，不依赖窗口焦点）
 
 ### 可调参数
 
-来自 Duo-animation 的 `FoldParameters`（在 `FoldEffectParameters` 中）：
+在 `FoldEffectOptions`（`app/FoldEffectMode.h`）与 `FoldEffectParameters`（`graphics/FoldRenderer.h`）中：
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `eyeDistanceMm` | 450 | 视点到平面距离，按显示器 DPI 换算（本机 120 dpi → 2126 px） |
-| `blurSpread` | 0.12 | 每像素间隙产生的模糊半径 |
+| `activationAngleDeg` | 110 | 激活角；≥ 它时桌面完全不处理（lid-plane 的默认值） |
+| `maxDeltaDegrees` | 60 | 交给 shader 的最大角度差 |
+| `blurStrength` | 65 | 每 1000 px 屏高、在最大 delta 时的模糊半径（lid-plane 的常量） |
 | `darkening` | 0.015 | 每像素模糊半径造成的亮度衰减 |
-| `maxTiltDegrees` | 62 | 交给 shader 的最大倾斜角 |
+| `eyeDistancePx` | 12 288 | 视点到内容平面的距离（= 6.4 × 屏宽），保持投影接近恒等 |
 
 ### 实测
 
 ```
-display 1920x1080, 120 dpi -> eye distance 2126 px, blur 0.120, darken 0.015
-FOLD   hinge 120.7   progress 0.671   tilt 40.9   lid 1   overlay ON
+display 1920x1080, 120 dpi -> eye distance 12288 px
+activation 110 deg, blur 65/1000px, darken 0.015, max delta 60 deg
+idle   hinge  114.1   delta   -4.1 (act 110)   lid 1   overlay off   frames 0
 ```
 
 ---

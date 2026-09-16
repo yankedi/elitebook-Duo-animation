@@ -20,10 +20,10 @@ namespace {
 // Must stay in sync with the cbuffer in FoldShaderSource.h: two 16-byte rows.
 struct FoldConstants {
     float resolution[2];
-    float foldAngle;
+    float angleDelta;
     float eyeDistancePx;
 
-    float blurSpread;
+    float blurStrength;
     float darkening;
     float hingeFromTop;
     float padding;
@@ -159,15 +159,11 @@ void FoldRenderer::Resize(uint32_t width, uint32_t height) {
 // ==========================================================================
 //  Angle mapping
 // ==========================================================================
-float FoldRenderer::TiltDegreesForHinge(float hingeAngleDeg,
-                                        const FoldEffectParameters& parameters) {
-    // 180 degrees = lid flat -> no tilt at all.
-    //  90 degrees = lid upright -> full tilt.
-    // Below 90 the shader would saturate, so the range is mapped instead of
-    // clamped: the effect keeps changing all the way to fully closed.
-    const float span = 180.0f - hingeAngleDeg;
-    const float progress = std::clamp(span / 90.0f, 0.0f, 1.0f);
-    return progress * parameters.maxTiltDegrees;
+float FoldRenderer::ClampDelta(float angleDeltaDeg,
+                               const FoldEffectParameters& parameters) {
+    // A negative delta means the lid is above the activation angle: the desktop
+    // is simply being used and the shader must pass it through untouched.
+    return std::clamp(angleDeltaDeg, 0.0f, parameters.maxDeltaDegrees);
 }
 
 // ==========================================================================
@@ -195,7 +191,7 @@ bool FoldRenderer::BindContent(ID3D11Texture2D* desktop) {
 void FoldRenderer::Render(ID3D11DeviceContext* context,
                           ID3D11Texture2D* desktop,
                           ID3D11RenderTargetView* target,
-                          float hingeAngleDeg,
+                          float angleDeltaDeg,
                           const FoldEffectParameters& parameters) {
     if (!m_ready || !context || !target || !desktop) {
         return;
@@ -208,10 +204,9 @@ void FoldRenderer::Render(ID3D11DeviceContext* context,
     FoldConstants constants{};
     constants.resolution[0] = static_cast<float>(m_width);
     constants.resolution[1] = static_cast<float>(m_height);
-    constants.foldAngle =
-        TiltDegreesForHinge(hingeAngleDeg, parameters) * kPi / 180.0f;
+    constants.angleDelta = ClampDelta(angleDeltaDeg, parameters) * kPi / 180.0f;
     constants.eyeDistancePx = parameters.eyeDistancePx;
-    constants.blurSpread = parameters.blurSpread;
+    constants.blurStrength = parameters.blurStrength;
     constants.darkening = parameters.darkening;
     constants.hingeFromTop = parameters.hingeFromTop ? 1.0f : 0.0f;
     constants.padding = 0.0f;

@@ -27,11 +27,36 @@ class SensorManager;
 class CustomSensorManager;
 
 struct FoldEffectOptions {
-    // Tuning, taken from Duo-animation's FoldParameters (see FoldRenderer.h).
-    float eyeDistanceMm = 450.0f;
-    float blurSpread = 0.12f;
+    // ---------------------------------------------------------------------
+    //  Strategy taken from lid-plane (jh3y/lid-plane, GPL-3.0-or-later).
+    //
+    //  The effect is keyed to how far the lid has closed BELOW an activation
+    //  angle, not to the absolute hinge angle:
+    //
+    //      delta = activationAngle - hingeAngle
+    //
+    //      hingeAngle > activationAngle -> delta < 0 -> desktop untouched
+    //      hingeAngle = activationAngle -> delta = 0 -> effect starts
+    //      hingeAngle < activationAngle -> delta > 0 -> effect builds
+    //
+    //  110 degrees is that project's default.  Above it a laptop is simply
+    //  being used and the desktop must be left alone; the effect belongs to the
+    //  act of closing.  The illusion is that the content holds the activation
+    //  angle while the physical screen tilts around it.
+    // ---------------------------------------------------------------------
+    float activationAngleDeg = 110.0f;
+
+    // Largest angle delta fed to the shader.  lid-plane clamps its delta to
+    // roughly 1.25 rad (72 degrees).
+    float maxDeltaDegrees = 60.0f;
+
+    // Blur radius per 1000 px of display height, at the largest delta.  This is
+    // lid-plane's constant; the shader turns it into pixels using the actual
+    // display height so the look scales with panel size.
+    float blurStrength = 65.0f;
+
+    // Fraction of light lost per pixel of blur radius.
     float darkening = 0.015f;
-    float maxTiltDegrees = 62.0f;
 
     // Render loop rate.  The effect only runs while the lid moves, so this is
     // the rate during motion, not an idle cost.

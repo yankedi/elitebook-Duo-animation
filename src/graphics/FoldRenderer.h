@@ -23,21 +23,23 @@ namespace dragonfly {
 // Tunables.  The first three come from Duo-animation's FoldParameters, which is
 // where the reference project landed after tuning on real hardware.
 struct FoldEffectParameters {
-    // Eye distance from the content plane, in pixels.  The reference uses
-    // 450 mm; converted here with the display's own pixel density.
-    float eyeDistancePx = 1700.0f;
+    // Largest angle delta handed to the shader, in degrees.  lid-plane clamps
+    // its delta to roughly 1.25 rad (72 degrees); 60 is used here to keep the
+    // blur kernel within a cheap sampling budget.
+    float maxDeltaDegrees = 60.0f;
 
-    // Blur radius gained per pixel of glass-to-plane gap (reference: 0.12).
-    float blurSpread = 0.12f;
+    // Blur radius per 1000 px of display height, at the largest delta.
+    // This is lid-plane's constant (65); the shader turns it into pixels using
+    // the actual display height, so the look scales with panel size.
+    float blurStrength = 65.0f;
 
-    // Light lost per pixel of blur radius (reference: 0.015).
+    // Fraction of light lost per pixel of blur radius.
     float darkening = 0.015f;
 
-    // Largest pane tilt handed to the shader.  duo-open maps its hinge range
-    // onto 0..45 degrees for exactly this reason: past that the projection
-    // magnification grows faster than the effect gains, and the frame starts
-    // leaving the content plane.  45 degrees is the reference value.
-    float maxTiltDegrees = 45.0f;
+    // Eye distance from the content plane, in pixels.  Only used to keep the
+    // ray-plane projection near identity, so the effect reads as glass rather
+    // than as a magnified image.
+    float eyeDistancePx = 12000.0f;
 
     // A laptop lid hinges on the bottom edge of the panel.
     bool hingeFromTop = false;
@@ -49,18 +51,20 @@ public:
     void Destroy();
     void Resize(uint32_t width, uint32_t height);
 
-    // Renders `desktop` with the fold applied into `target`.
-    // hingeAngleDeg: 180 = flat (effect off), smaller = more folded.
+    // Renders `desktop` with the effect applied into `target`.
+    //
+    // angleDeltaDeg is how far the lid has closed BELOW the activation angle:
+    // zero or negative means the desktop is untouched and the shader passes the
+    // frame straight through.
     void Render(ID3D11DeviceContext* context,
                 ID3D11Texture2D* desktop,
                 ID3D11RenderTargetView* target,
-                float hingeAngleDeg,
+                float angleDeltaDeg,
                 const FoldEffectParameters& parameters);
 
-    // The tilt the shader would receive for a given hinge angle, in degrees.
-    // Exposed so the caller can print it next to the sensor values.
-    static float TiltDegreesForHinge(float hingeAngleDeg,
-                                     const FoldEffectParameters& parameters);
+    // Clamps a raw delta to the range the shader accepts.
+    static float ClampDelta(float angleDeltaDeg,
+                            const FoldEffectParameters& parameters);
 
     bool Ready() const { return m_ready; }
     const char* LastError() const { return m_lastError; }
