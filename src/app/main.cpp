@@ -34,6 +34,7 @@
 
 #include <conio.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <filesystem>
@@ -379,17 +380,19 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
     terminal.Write(
         "\nOrientation demo - the model follows the fused Windows OrientationSensor.\n"
         "\n"
-        "The scene is driven by TILT: the angle between the screen normal and the\n"
-        "world's up direction, taken from the world-vertical component of the screen\n"
-        "normal.  It is absolute (0 = closed, 90 = upright, 180 = folded back) and it\n"
-        "ignores yaw entirely, so rotating the whole machine on the desk does not move\n"
-        "the panel at all.\n"
+        "progress = hingeAngle / 180, covering ONLY the closed..flat span:\n"
+        "     0.0 = closed, 0.5 = upright, 1.0 = flat\n"
+        "Past flat (Lid Mode 3+) progress is pinned to 1.0 and the effect switches\n"
+        "off -- there is no second IMU, so beyond 180 degrees the pose cannot be\n"
+        "told apart from whole-device motion, and a renderer would simply restore\n"
+        "the untouched desktop at that point.\n"
         "\n"
-        "Tilting the whole machine (pitch / roll) still shifts it: a single IMU cannot\n"
-        "tell the machine's own motion apart from lid motion.  That is a physical\n"
-        "limit, not a bug.\n"
+        "The angles come from the world-vertical component of the screen normal, so\n"
+        "rotating the whole machine on the desk (yaw) does not move the panel at all.\n"
+        "Tilting the whole machine (pitch / roll) still shifts it: that is a physical\n"
+        "limit of a single IMU, not a bug.\n"
         "\n"
-        "  STABLE   hinge model driven by tilt (default)\n"
+        "  STABLE   hinge model driven by foldProgress (default)\n"
         "  WEBSITE  the site's rotateX(-beta) rotateY(gamma) formula, for comparison\n"
         "  FULL     the complete attitude matrix, so yaw moves the model too\n"
         "\n"
@@ -493,6 +496,13 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         const double tiltDeg = tracker.TiltDegrees();
         const double hingeAngleDeg = pastFlat ? (180.0 + tiltDeg) : (180.0 - tiltDeg);
 
+        // The visual only covers the closed..flat span.  Past flat the effect is
+        // switched off outright: the progress is pinned to 1.0 so a renderer
+        // would return to the untouched desktop instead of following the pose,
+        // which a single IMU cannot resolve out there anyway.
+        const double foldProgress =
+            pastFlat ? 1.0 : std::clamp(hingeAngleDeg / 180.0, 0.0, 1.0);
+
         dragonfly::OrientationVisual visual;
         visual.alphaDeg = angles.alphaDeg;
         visual.betaDeg = angles.betaDeg;
@@ -504,6 +514,7 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         tracker.Normal(visual.normalX, visual.normalY, visual.normalZ);
         visual.tiltDeg = tiltDeg;
         visual.hingeAngleDeg = hingeAngleDeg;
+        visual.foldProgress = foldProgress;
         visual.lidMode = lidMode;
         visual.pastFlat = pastFlat;
         visual.mode = mode;
@@ -527,17 +538,17 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
                 std::snprintf(lidText, sizeof(lidText), "%d", lidMode);
             }
 
-            char buffer[420];
+            char buffer[460];
             const int written = std::snprintf(
                 buffer, sizeof(buffer),
-                "%-7s  hinge %6.1f deg   tilt %5.1f   lid %s%s  | "
-                "normal %6.3f %6.3f %6.3f  | a %6.1f  b %6.1f  g %7.1f%s%s",
-                modeName(mode), hingeAngleDeg, tiltDeg, lidText,
-                pastFlat ? " >180" : "",
+                "%-7s  hinge %6.1f   progress %5.3f%s   tilt %5.1f   lid %s  | "
+                "normal %6.3f %6.3f %6.3f  | a %6.1f  b %6.1f  g %7.1f%s",
+                modeName(mode), hingeAngleDeg, foldProgress,
+                pastFlat ? " (effect off: past flat)" : "",
+                tiltDeg, lidText,
                 visual.normalX, visual.normalY, visual.normalZ,
                 angles.alphaDeg, angles.betaDeg, angles.gammaDeg,
-                angles.gimbalLock ? "  GIMBAL" : "",
-                angles.foldedBeta ? "  FOLDED" : "");
+                angles.gimbalLock ? "  GIMBAL" : "");
 
             std::string line =
                 "\r" + std::string(buffer, written < 0 ? 0 : static_cast<size_t>(written));

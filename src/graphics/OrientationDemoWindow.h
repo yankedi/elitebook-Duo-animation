@@ -60,6 +60,13 @@ struct OrientationVisual {
     // Full hinge angle, 0..360, resolved with the Lid Mode anchor:
     //   0 = closed, 90 = upright, 180 = flat, 360 = folded right back
     double hingeAngleDeg = 90.0;
+    // Visual fold progress, 0..1, covering ONLY the closed..flat span:
+    //   foldProgress = hingeAngle / 180, clamped.
+    // Once the Lid Mode anchor says the machine is past flat, this is pinned
+    // to 1.0 -- the effect switches itself off.  There is no second IMU, so
+    // beyond 180 degrees the pose cannot be separated from whole-device
+    // motion; pretending otherwise produced nothing but garbage.
+    double foldProgress = 0.5;
     int lidMode = -1;              // raw Lid Mode value, -1 = unavailable
     bool pastFlat = false;         // Lid Mode says we are beyond 180 degrees
     OrientationVisualMode mode = OrientationVisualMode::Stable;

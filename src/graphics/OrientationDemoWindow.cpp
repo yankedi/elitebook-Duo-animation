@@ -417,17 +417,15 @@ void OrientationDemoWindow::RenderScreenRotation(const OrientationVisual& visual
     }
 
     case OrientationVisualMode::Stable: {
-        // Drive the model from the full hinge angle (0..360), not from the raw
-        // tilt.  Tilt folds back at the flat position, so on its own it cannot
-        // tell 179 degrees from 181; the Lid Mode anchor resolves that.
+        // Drive the model from foldProgress, which covers only the closed..flat
+        // span and is pinned to 1.0 once the Lid Mode anchor reports that the
+        // machine is past flat.  Past 180 degrees the effect is therefore off
+        // and the panel simply rests at "fully open".
         //
-        // Beyond 180 degrees the real machine is showing its back and the base
-        // is what moves, so the model mirrors the angle instead of rolling the
-        // panel over: the screen stays facing the viewer the whole way, which
-        // is the behaviour you asked for.
-        const double theta = visual.hingeAngleDeg;
-        const double modelAngleDeg =
-            (theta <= 180.0) ? (theta - 90.0) : (270.0 - theta);
+        //   progress 0.0 -> panel folded flat onto the base
+        //   progress 0.5 -> panel upright
+        //   progress 1.0 -> panel laid back to the flat position
+        const double modelAngleDeg = visual.foldProgress * 180.0 - 90.0;
         model = XMMatrixRotationX(
             XMConvertToRadians(static_cast<float>(-modelAngleDeg)));
         break;
@@ -502,13 +500,12 @@ void OrientationDemoWindow::UpdateTitle(const OrientationVisual& visual) {
         swprintf_s(lidText, L"%d", visual.lidMode);
     }
 
-    wchar_t buffer[420] = {};
+    wchar_t buffer[460] = {};
     swprintf_s(buffer,
-               L"Orientation Demo  |  %s  |  hinge %6.1f deg   tilt %5.1f   "
-               L"lid %s%s  |  a %6.1f  b %6.1f  g %7.1f  |  %s",
-               modeName, visual.hingeAngleDeg, visual.tiltDeg, lidText,
-               visual.pastFlat ? L" >180" : L"",
-               visual.alphaDeg, visual.betaDeg, visual.gammaDeg,
+               L"Orientation Demo  |  %s  |  progress %5.3f   hinge %6.1f   tilt %5.1f   "
+               L"lid %s%s  |  %s",
+               modeName, visual.foldProgress, visual.hingeAngleDeg, visual.tiltDeg,
+               lidText, visual.pastFlat ? L"   EFFECT OFF (past flat)" : L"",
                visual.valid ? (visual.transposed ? L"transposed" : L"as-reported")
                             : L"(no sensor data)");
     SetWindowTextW(m_hwnd, buffer);
