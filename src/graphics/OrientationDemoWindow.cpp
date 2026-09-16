@@ -417,14 +417,17 @@ void OrientationDemoWindow::RenderScreenRotation(const OrientationVisual& visual
     }
 
     case OrientationVisualMode::Stable: {
-        // Model the lid as a hinge: the panel is upright when the tilt is 90
-        // degrees and lies flat on the base when it is 0, so the model turns by
-        // (90 - tilt) about the hinge axis.
+        // Drive the model from the full hinge angle (0..360), not from the raw
+        // tilt.  Tilt folds back at the flat position, so on its own it cannot
+        // tell 179 degrees from 181; the Lid Mode anchor resolves that.
         //
-        // TiltDegrees() comes from the world-vertical component of the screen
-        // normal, so a whole-device turn (yaw) leaves it untouched -- the panel
-        // no longer swings when the machine is simply rotated on the desk.
-        const double modelAngleDeg = 90.0 - visual.tiltDeg;
+        // Beyond 180 degrees the real machine is showing its back and the base
+        // is what moves, so the model mirrors the angle instead of rolling the
+        // panel over: the screen stays facing the viewer the whole way, which
+        // is the behaviour you asked for.
+        const double theta = visual.hingeAngleDeg;
+        const double modelAngleDeg =
+            (theta <= 180.0) ? (theta - 90.0) : (270.0 - theta);
         model = XMMatrixRotationX(
             XMConvertToRadians(static_cast<float>(-modelAngleDeg)));
         break;
@@ -487,16 +490,25 @@ void OrientationDemoWindow::UpdateTitle(const OrientationVisual& visual) {
 
     const wchar_t* modeName = L"?";
     switch (visual.mode) {
-    case OrientationVisualMode::Website: modeName = L"WEBSITE (rotateX/rotateY)"; break;
-    case OrientationVisualMode::Stable: modeName = L"STABLE (screen normal)"; break;
-    case OrientationVisualMode::Full: modeName = L"FULL attitude"; break;
+    case OrientationVisualMode::Website: modeName = L"WEBSITE"; break;
+    case OrientationVisualMode::Stable: modeName = L"STABLE"; break;
+    case OrientationVisualMode::Full: modeName = L"FULL"; break;
     }
 
-    wchar_t buffer[360] = {};
-    swprintf_s(buffer, L"Orientation Demo  |  %s  |  a %7.1f   b %7.1f   g %7.1f %s%s  |  %s",
-               modeName, visual.alphaDeg, visual.betaDeg, visual.gammaDeg,
-               visual.gimbalLock ? L" [GIMBAL]" : L"",
-               visual.foldedBeta ? L" [FOLDED]" : L"",
+    wchar_t lidText[16] = {};
+    if (visual.lidMode < 0) {
+        wcscpy_s(lidText, L"--");
+    } else {
+        swprintf_s(lidText, L"%d", visual.lidMode);
+    }
+
+    wchar_t buffer[420] = {};
+    swprintf_s(buffer,
+               L"Orientation Demo  |  %s  |  hinge %6.1f deg   tilt %5.1f   "
+               L"lid %s%s  |  a %6.1f  b %6.1f  g %7.1f  |  %s",
+               modeName, visual.hingeAngleDeg, visual.tiltDeg, lidText,
+               visual.pastFlat ? L" >180" : L"",
+               visual.alphaDeg, visual.betaDeg, visual.gammaDeg,
                visual.valid ? (visual.transposed ? L"transposed" : L"as-reported")
                             : L"(no sensor data)");
     SetWindowTextW(m_hwnd, buffer);

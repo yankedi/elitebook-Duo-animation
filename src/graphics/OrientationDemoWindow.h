@@ -57,6 +57,11 @@ struct OrientationVisual {
     // Angle between the screen normal and world up; 0 = flat/closed,
     // 90 = upright, 180 = folded all the way back.  Yaw-invariant.
     double tiltDeg = 90.0;
+    // Full hinge angle, 0..360, resolved with the Lid Mode anchor:
+    //   0 = closed, 90 = upright, 180 = flat, 360 = folded right back
+    double hingeAngleDeg = 90.0;
+    int lidMode = -1;              // raw Lid Mode value, -1 = unavailable
+    bool pastFlat = false;         // Lid Mode says we are beyond 180 degrees
     OrientationVisualMode mode = OrientationVisualMode::Stable;
     bool transposed = false;
     bool valid = false;

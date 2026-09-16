@@ -359,6 +359,7 @@ void RunEstimatorSelfTest() {
 namespace {
 
 int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors,
+                       dragonfly::CustomSensorManager& customSensors,
                        ui::Terminal& terminal) {
     dragonfly::OrientationTracker tracker;
     // The site's only smoothing is `transition-transform duration-75`, so
@@ -404,6 +405,10 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
     const std::chrono::duration<double> period(1.0 / 60.0);
 
     bool referenceCaptured = false;
+    // Which side of the flat position the lid is on.  Lid Mode 2 is the
+    // transition band, so only states 1 and 3+ may change this -- that keeps the
+    // resolved angle from flickering while the sensor hovers around 180.
+    bool pastFlat = false;
 
     auto modeName = [](VisualMode value) -> const char* {
         switch (value) {
@@ -475,6 +480,18 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         }
 
         const dragonfly::OrientationAngles angles = tracker.Angles();
+        const int lidMode = customSensors.LidMode();
+
+        // ---- resolve the full 0..360 hinge angle --------------------------
+        // Tilt alone is |180 - theta|: it folds back at the flat position and
+        // cannot tell 179 from 181 degrees.  Lid Mode says which side we are on.
+        if (lidMode >= 3) {
+            pastFlat = true;
+        } else if (lidMode == 1) {
+            pastFlat = false;
+        }
+        const double tiltDeg = tracker.TiltDegrees();
+        const double hingeAngleDeg = pastFlat ? (180.0 + tiltDeg) : (180.0 - tiltDeg);
 
         dragonfly::OrientationVisual visual;
         visual.alphaDeg = angles.alphaDeg;
@@ -485,7 +502,10 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         tracker.RelativeNormal(visual.relativeNormalX, visual.relativeNormalY,
                                visual.relativeNormalZ);
         tracker.Normal(visual.normalX, visual.normalY, visual.normalZ);
-        visual.tiltDeg = tracker.TiltDegrees();
+        visual.tiltDeg = tiltDeg;
+        visual.hingeAngleDeg = hingeAngleDeg;
+        visual.lidMode = lidMode;
+        visual.pastFlat = pastFlat;
         visual.mode = mode;
         visual.transposed = tracker.Transposed();
         visual.valid = tracker.Valid();
@@ -500,17 +520,24 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         if (sample.steadySeconds - lastReportSeconds >= 0.25) {
             lastReportSeconds = sample.steadySeconds;
 
-            char buffer[400];
+            char lidText[8] = {};
+            if (lidMode < 0) {
+                std::snprintf(lidText, sizeof(lidText), "--");
+            } else {
+                std::snprintf(lidText, sizeof(lidText), "%d", lidMode);
+            }
+
+            char buffer[420];
             const int written = std::snprintf(
                 buffer, sizeof(buffer),
-                "%-7s  tilt %6.1f deg  | normal %6.3f %6.3f %6.3f  | "
-                "a %6.1f  b %6.1f  g %7.1f%s%s%s",
-                modeName(mode), visual.tiltDeg,
+                "%-7s  hinge %6.1f deg   tilt %5.1f   lid %s%s  | "
+                "normal %6.3f %6.3f %6.3f  | a %6.1f  b %6.1f  g %7.1f%s%s",
+                modeName(mode), hingeAngleDeg, tiltDeg, lidText,
+                pastFlat ? " >180" : "",
                 visual.normalX, visual.normalY, visual.normalZ,
                 angles.alphaDeg, angles.betaDeg, angles.gammaDeg,
                 angles.gimbalLock ? "  GIMBAL" : "",
-                angles.foldedBeta ? "  FOLDED" : "",
-                visual.valid ? "" : "  (no orientation data)");
+                angles.foldedBeta ? "  FOLDED" : "");
 
             std::string line =
                 "\r" + std::string(buffer, written < 0 ? 0 : static_cast<size_t>(written));
@@ -667,7 +694,7 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     if (options.orientationDemo) {
-        const int result = RunOrientationDemo(options, sensors, terminal);
+        const int result = RunOrientationDemo(options, sensors, customSensors, terminal);
         sensors.Stop();
         customSensors.Stop();
         logger.Close();
