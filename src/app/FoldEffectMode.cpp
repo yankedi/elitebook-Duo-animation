@@ -151,6 +151,15 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // Decides whether the effect may be on screen at all; see DisplaySafetyGate.h.
     // Declared here because the banner below reports its recovery delay.
     DisplaySafetyGate safety;
+    safety.SetRecoveryDelay(options.recoverySettleSeconds);
+
+    // Keep the panel powered while the effect is running.  Without this the
+    // idle timeout blanks it, and the first thing the user sees after opening
+    // the lid is the blank panel waking up -- the effect cannot be earlier than
+    // the panel is.  Cleared on every exit path at the end of this function.
+    if (options.keepDisplayAwake) {
+        SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
+    }
 
     terminal.Write(
         "\nFold effect armed.\n"
@@ -167,7 +176,8 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   "  display %ux%u, %u dpi -> eye distance %.0f px\n"
                   "  activation %.0f deg, blur %.0f/1000px, darken %.3f, max delta %.0f deg\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
-                  "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.1f s\n\n",
+                  "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
+                  "  display kept awake: %s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
@@ -176,7 +186,8 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   overlay.DisplayNotifyActive() ? "yes" : "NO",
                   initialLidSwitch < 0 ? "unknown"
                                        : (initialLidSwitch != 0 ? "open" : "closed"),
-                  overlay.LidNotifyActive() ? "yes" : "NO", safety.RecoveryDelay());
+                  overlay.LidNotifyActive() ? "yes" : "NO", safety.RecoveryDelay(),
+                  options.keepDisplayAwake ? "yes" : "no");
     terminal.Write(setup);
 
     // ---- prime the first frame -------------------------------------------
@@ -229,6 +240,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     double lastSampleSeconds = 0.0;
     double lastReportSeconds = -1.0;
     double lastRecoverySeconds = -1.0;
+    double lastRefreshSeconds = 0.0;
     std::size_t lastLineLength = 0;
     bool lastEffectWanted = false;
     uint64_t renderedFrames = 0;
@@ -236,23 +248,45 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     uint64_t loopCount = 0;
     uint64_t modeChanges = 0;
 
-    // Grabs the desktop into the content texture.  Returns false if the
-    // duplication is gone -- the caller must then stop drawing rather than keep
-    // showing whatever the texture still holds.
+    // Environment bookkeeping, for the transition log and the gate.
+    DisplaySafetyGate::State lastGateState = DisplaySafetyGate::State::Recovering;
+    int lastLidSwitch = overlay.LidSwitchState();
+    bool lastDisplayOn = overlay.DisplayOn();
+
+    // Grabs the desktop into the content texture.
+    //
+    // A timeout is NOT a failure here.  AcquireNextFrame only hands back a frame
+    // when the composited desktop changed, and it times out when the image is
+    // identical to the one it delivered last -- and that delivered image is
+    // exactly what the content texture holds.  So "no new frame" means the frame
+    // in hand is still the current desktop, and it can be used as is.
+    //
+    // The duplication being dead is the one real failure: the texture then holds
+    // something that can no longer be trusted, and the caller must not draw it.
     auto grabDesktop = [&]() -> bool {
-        for (int attempt = 0; attempt < 3; ++attempt) {
-            if (!capture.AcquireFrame(120)) {
-                if (!capture.Healthy()) {
-                    return false;
-                }
-                continue;  // timeout: the frame simply had not changed yet
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            if (capture.AcquireFrame(100)) {
+                capture.CopyFrameTo(device.Context(), content.Get());
+                capture.ReleaseFrame();
+                ++captureCount;
+                return true;
             }
-            capture.CopyFrameTo(device.Context(), content.Get());
-            capture.ReleaseFrame();
-            ++captureCount;
-            return true;
+            if (!capture.Healthy()) {
+                hasContent = false;
+                return false;
+            }
         }
-        return false;
+        return hasContent;  // nothing changed: the frame in hand is still current
+    };
+
+    // A small event log, so a run can be read back afterwards: the whole point
+    // of the safety gate is timing, and the console status line is overwritten
+    // every 0.25 s.
+    auto note = [&](const char* what, double hingeDeg) {
+        char buffer[160];
+        std::snprintf(buffer, sizeof(buffer), "\n  [env] %-22s hinge %6.1f\n", what,
+                      hingeDeg);
+        terminal.Write(buffer);
     };
 
     auto nextTick = std::chrono::steady_clock::now();
@@ -337,6 +371,24 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             lidClosedLatch = false;
         }
 
+        // ---- environment transition log --------------------------------------
+        // The gate is all about timing, and the 0.25 s status line is
+        // overwritten in place, so the transitions get their own lines: this is
+        // the record that says whether a late effect came from the panel waking
+        // up or from something this program did.
+        const bool displayOn = overlay.DisplayOn();
+        if (displayOn != lastDisplayOn) {
+            lastDisplayOn = displayOn;
+            note(displayOn ? "monitor power on" : "monitor power off", hingeAngle);
+        }
+        if (lidSwitch != lastLidSwitch) {
+            lastLidSwitch = lidSwitch;
+            if (lidSwitch >= 0) {
+                note(lidSwitch != 0 ? "lid switch open" : "lid switch closed",
+                     hingeAngle);
+            }
+        }
+
         // ---- display mode and capture health --------------------------------
         const uint32_t metricsWidth =
             static_cast<uint32_t>(GetSystemMetrics(SM_CXSCREEN));
@@ -362,6 +414,10 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         const bool ready = safety.Update(lidClosedLatch, overlay.DisplayOn(),
                                          capture.Healthy(), sensorFresh,
                                          sample.steadySeconds);
+        if (safety.Current() != lastGateState) {
+            lastGateState = safety.Current();
+            note(DisplaySafetyGate::Text(lastGateState), hingeAngle);
+        }
 
         // ---- capture recovery -----------------------------------------------
         // A duplication that came back DXGI_ERROR_ACCESS_LOST is dead and can
@@ -417,12 +473,30 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // result, and each frame would come out blurrier than the last until the
         // whole screen went black.
         if (!effectWanted) {
-            // Fail closed.  Whatever is on screen while the environment is not
-            // trustworthy is a snapshot of unknown age, and the frame in hand
-            // stops matching the desktop the moment the desktop changes.
+            // Fail closed: nothing is drawn while the environment is not
+            // trustworthy.  The frame in hand is NOT discarded though -- a
+            // timeout from the duplication means it still matches the desktop,
+            // and keeping it is what lets the effect come back the instant the
+            // lid is open instead of after a fresh capture.
             overlay.Show(false);
-            hasContent = false;
+            if (lastEffectWanted) {
+                note("effect off", hingeAngle);
+            }
             lastEffectWanted = false;
+
+            // Opportunistic refresh, at most once a second: whenever something
+            // moved on screen while the overlay was hidden, a newer frame lands
+            // in the content texture, so the next fold starts from a current
+            // picture rather than from the one taken before the lid was closed.
+            if (sample.steadySeconds - lastRefreshSeconds >= 1.0) {
+                lastRefreshSeconds = sample.steadySeconds;
+                if (capture.Healthy() && capture.AcquireFrame(0)) {
+                    capture.CopyFrameTo(device.Context(), content.Get());
+                    capture.ReleaseFrame();
+                    ++captureCount;
+                    hasContent = true;
+                }
+            }
         } else if (!lastEffectWanted) {
             // Hide first: a capture taken while the overlay is up would contain
             // the overlay itself.
@@ -430,6 +504,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             hasContent = grabDesktop();
             lastEffectWanted = true;
+            if (effectWanted) {
+                note("effect on", hingeAngle);
+            }
         } else if (!hasContent) {
             // An earlier attempt came back empty; keep asking while the effect
             // wants to be visible.
@@ -507,6 +584,10 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     }
 
     // ---- shutdown ---------------------------------------------------------
+    if (options.keepDisplayAwake) {
+        // Hand the display's idle timeout back to the system.
+        SetThreadExecutionState(ES_CONTINUOUS);
+    }
     overlay.Show(false);
     capture.Stop();
     renderer.Destroy();

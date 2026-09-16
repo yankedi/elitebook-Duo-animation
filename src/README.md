@@ -426,7 +426,7 @@ before restarting capture*）：
 | `Paused - display unavailable` | 显示器电源状态变为 off | 同上 |
 | `Paused - capture lost` | duplication 返回 `DXGI_ERROR_ACCESS_LOST` 等 | 同上，并重建 duplication |
 | `Paused - sensor unavailable` | OrientationSensor 超过 1 s 没有新读数 | 同上 |
-| `Waiting for display...` | 以上全部恢复 | 继续等待 0.5 s 稳定期 |
+| `Waiting for display...` | 以上全部恢复 | 继续等待 0.12 s 稳定期 |
 | `Ready` | 稳定期满 | 才允许重新抓屏并显示 |
 
 为什么需要它：**合盖时 `delta` 正好是最大值**。没有这道门，overlay 会在整个合盖期间一直挂着，
@@ -444,6 +444,32 @@ before restarting capture*）：
 - overlay 为 `WS_EX_TRANSPARENT`，鼠标可穿透，不影响正常操作
 - `delta ≤ 0` 或越过摊平（Lid Mode 3+）时同样隐藏并完全停止渲染（空闲 CPU 接近 0）
 - `[ESC]` / `[F10]` 全局退出（`GetAsyncKeyState`，不依赖窗口焦点）
+
+### 为什么开盖后效果能立刻出现
+
+第一版实现里开盖后有一段"桌面是正常的"空档，原因有两个，都不是效果本身的问题：
+
+1. **稳定期太长**：参考实现用 0.5 s，但一次开盖动作只有约 1 秒，
+   0.5 秒会吃掉大半个动作。这里用 0.12 s，只够跳过合成器重建中的那一两帧。
+2. **误以为"抓不到新帧 = 不能用旧帧"**：
+   `IDXGIOutputDuplication::AcquireNextFrame` **只在合成画面发生变化时才给帧**，
+   超时（`DXGI_ERROR_WAIT_TIMEOUT`）的含义恰恰是"画面和上次交付给你的那一帧完全一致"——
+   而上次交付的那一帧就存在 `content` 纹理里。所以**超时不是失败，手里那帧仍然是当前桌面**。
+   真正不能用的是 duplication 失效（`DXGI_ERROR_ACCESS_LOST` 等），那种情况才必须重建并等待。
+
+因此现在的策略是：
+
+- 暂停期间**保留**最后一张真实桌面快照，不清空
+- overlay 隐藏期间每秒**顺带刷新**一次（`AcquireFrame(0)`，有不花时间就更新，
+  所以下一轮开合拿到的是"最多 1 秒前"的画面，而不是合盖前那一刻的）
+- 效果出现的条件只是"环境健康 0.12 s"，抓到帧就立刻显示；
+  只有 duplication 真的失效时才需要重建
+
+另外，Windows 空闲超时熄灭屏幕后，开盖时面板本身需要时间点亮 —— 那段时间里
+屏幕是黑的，程序无能为力。所以运行时用
+`SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED)`
+**不让空闲超时把面板关掉**（否则开盖第一眼看到的是正在唤醒的面板，效果不可能比面板更早）。
+副作用是程序运行期间屏幕不会自动熄灭；用 `--allow-display-off` 可以恢复系统默认行为。
 
 启动横幅会打印这道门实际拿到的信号源，便于判断是哪一条在起作用：
 
@@ -477,6 +503,8 @@ gate self test: 19 checks, 0 mismatches -> PASS
 | `blurStrength` | 65 | 每 1000 px 屏高、在最大 delta 时的模糊半径（lid-plane 的常量） |
 | `darkening` | 0.015 | 每像素模糊半径造成的亮度衰减 |
 | `eyeDistancePx` | 12 288 | 视点到内容平面的距离（= 6.4 × 屏宽），保持投影接近恒等 |
+| `recoverySettleSeconds` | 0.12 | 环境恢复后到允许效果重新出现之间的稳定期（参考实现 0.5 s，对笔记本开盖太慢） |
+| `keepDisplayAwake` | true | 运行期间阻止空闲超时熄灭屏幕；`--allow-display-off` 关闭 |
 
 ### 实测
 

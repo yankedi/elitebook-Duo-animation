@@ -369,8 +369,11 @@ std::string FormatStartupReport(const std::vector<ChannelInfo>& channels,
     out += Line("  --no-window     do not open the debug fold window");
     out += Line("  --manual        start with the estimator in manual mode");
     out += Line("  --write-config  write the default config.json next to the executable");
-    out += Line("  --selftest      run the estimator against a synthetic gyro sequence");
+    out += Line("  --selftest      run the estimator and safety-gate self tests");
     out += Line("  --orientation-demo  native counterpart of testyourdevices.com/gyroscope-test/");
+    out += Line("  --fold-effect   show the live desktop folding as the lid moves");
+    out += Line("  --dump-frames   save the captured desktop and rendered frames as BMP");
+    out += Line("  --allow-display-off  let the display sleep while --fold-effect runs");
     out += Line("");
     out += Line("  Fold progress is a visual quantity; no physical angle is estimated.");
     out += Line("");

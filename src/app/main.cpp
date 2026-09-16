@@ -74,6 +74,7 @@ struct Options {
     bool orientationDemo = false;
     bool foldEffect = false;
     bool dumpFrames = false;
+    bool allowDisplayOff = false;
     bool help = false;
 };
 
@@ -111,6 +112,7 @@ const wchar_t* kHelp =
     L"  --selftest       run the estimator against a synthetic gyro sequence\n"
     L"  --orientation-demo  native counterpart of testyourdevices.com/gyroscope-test/\n"
     L"  --fold-effect    show the live desktop folding as the lid moves\n"
+    L"  --allow-display-off  let the display sleep while --fold-effect runs\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -197,6 +199,8 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             options.foldEffect = true;
         } else if (argument == L"--dump-frames") {
             options.dumpFrames = true;
+        } else if (argument == L"--allow-display-off") {
+            options.allowDisplayOff = true;
         } else {
             return false;
         }
@@ -813,6 +817,7 @@ int wmain(int argc, wchar_t** argv) {
         dragonfly::FoldEffectOptions foldOptions;
         foldOptions.seconds = options.seconds;
         foldOptions.dumpFrames = options.dumpFrames;
+        foldOptions.keepDisplayAwake = !options.allowDisplayOff;
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();

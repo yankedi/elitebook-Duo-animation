@@ -55,6 +55,16 @@ struct FoldEffectOptions {
     // display height so the look scales with panel size.
     float blurStrength = 65.0f;
 
+    // How long the environment has to stay healthy after a lid close, a display
+    // power transition or a mode change before the effect is allowed back.
+    //
+    // The reference uses 0.5 s, which is too long here: opening a lid is a
+    // ~1 second motion, so half a second of settling eats most of it and the
+    // desktop looks untouched while the lid is already up.  What the delay is
+    // really for is to avoid sampling a compositor that is still rebuilding --
+    // and the panel's own power-on latency already covers most of that.
+    double recoverySettleSeconds = 0.12;
+
     // Fraction of light lost per pixel of blur radius.
     float darkening = 0.015f;
 
@@ -69,6 +79,18 @@ struct FoldEffectOptions {
     // inspect what the shader actually produced: GDI screen captures cannot see
     // D3D-rendered content, so this is the only reliable view.
     bool dumpFrames = false;
+
+    // Ask Windows to keep the panel powered while the effect is running.
+    //
+    // A blanked panel has to be woken before anything can be shown on it, and
+    // that wake is pure latency: it is why the desktop appears "late" when the
+    // lid comes back up.  ES_DISPLAY_REQUIRED stops the idle timeout from
+    // blanking it in the first place, so there is nothing to wake.
+    //
+    // This only covers the idle timeout.  If the platform blanks the panel
+    // because the lid itself was shut, no user-mode program can hurry that up,
+    // and the settle period above is what covers the rest.
+    bool keepDisplayAwake = true;
 };
 
 // Returns 0 on success, non-zero when the effect could not be started.
