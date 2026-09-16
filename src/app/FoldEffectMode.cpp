@@ -144,7 +144,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         "\nFold effect armed.\n"
         "The overlay appears only while the lid is moving and is removed once the\n"
         "effect resolves, so a settled desktop is never covered.\n"
-        "Keys: [ESC] or [Q] to stop.\n\n");
+        "\n"
+        "STOP: press [ESC] or [F10] -- these are read globally, so they work even\n"
+        "      though the overlay holds the screen.  [Q] in this console also works.\n\n");
     char setup[400];
     std::snprintf(setup, sizeof(setup),
                   "  display %ux%u, %u dpi -> eye distance %.0f px, blur %.3f, darken %.3f\n"
@@ -200,6 +202,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     bool pastFlat = false;
     double lastSampleSeconds = 0.0;
     double lastReportSeconds = -1.0;
+    bool lastEffectWanted = false;
     uint64_t renderedFrames = 0;
     uint64_t captureCount = 0;
     uint64_t loopCount = 0;
@@ -207,7 +210,18 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     auto nextTick = std::chrono::steady_clock::now();
 
     while (!stopFlag.load()) {
-        // ---- keys (ESC or Q stops the effect) -----------------------------
+        // ---- stop keys ----------------------------------------------------
+        // The overlay is topmost and click-through, so the console never holds
+        // focus and _kbhit() sees nothing.  GetAsyncKeyState reads the physical
+        // key state instead, so ESC works no matter what has focus.
+        if ((GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0) {
+            break;
+        }
+        // F10 as a second way out, in case something swallows ESC.
+        if ((GetAsyncKeyState(VK_F10) & 0x8000) != 0) {
+            break;
+        }
+
         const int consoleKey = PollConsoleKey();
         if (consoleKey == 27 || consoleKey == 'q' || consoleKey == 'Q') {
             break;
@@ -246,6 +260,37 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // Past flat the pose cannot be resolved with a single IMU, so the effect
         // switches itself off and the desktop comes back untouched.
         const bool effectWanted = progress < 0.999 && tracker.Valid();
+
+        // ---- snapshot policy, the single most important part of this loop ----
+        //
+        // duo-open's whole overlay design rests on this line from its header:
+        // "Opening: the inner panel comes up -> ONE screenshot -> a full-screen
+        //  overlay draws it through the fold shader."
+        //
+        // Exactly one capture per fold, taken with the overlay hidden, then the
+        // image is frozen for the duration.  Capturing every frame would feed
+        // the overlay's own output back into the shader: the desktop duplication
+        // API captures the composed screen, so the shader would sample its last
+        // result, and each frame would come out blurrier than the last until the
+        // whole screen went black.
+        if (effectWanted && !lastEffectWanted) {
+            // Hide first: a capture taken while the overlay is up would contain
+            // the overlay itself.
+            overlay.Show(false);
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+            for (int attempt = 0; attempt < 3; ++attempt) {
+                if (capture.AcquireFrame(150)) {
+                    capture.CopyFrameTo(device.Context(), content.Get());
+                    capture.ReleaseFrame();
+                    hasContent = true;
+                    ++captureCount;
+                    break;
+                }
+            }
+        }
+        lastEffectWanted = effectWanted;
+
         overlay.Show(effectWanted);
         // Another topmost window can steal the front slot; re-assert it
         // periodically so the effect cannot end up hidden behind something.
@@ -256,39 +301,27 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // system refuses to show the window, the status line must say so.
         const bool overlayVisible = IsWindowVisible(overlay.Handle()) != FALSE;
 
-        if (effectWanted) {
-            // A short timeout rather than zero: the duplication API only signals
-            // when the desktop changes, and a zero timeout can miss a frame that
-            // is already queued.  A timeout simply means the desktop did not
-            // change, in which case the previous contents are still correct.
-            if (capture.AcquireFrame(5)) {
-                capture.CopyFrameTo(device.Context(), content.Get());
-                capture.ReleaseFrame();
-                hasContent = true;
-                ++captureCount;
-            }
+        if (effectWanted && hasContent) {
+            device.BeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
+            renderer.Render(device.Context(), content.Get(),
+                            device.BackBuffer(),
+                            static_cast<float>(hingeAngle), parameters);
 
-            if (hasContent) {
-                device.BeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
-                renderer.Render(device.Context(), content.Get(),
-                                device.BackBuffer(),
-                                static_cast<float>(hingeAngle), parameters);
-
-                // Dump before Present: with a DISCARD swap chain the back buffer
-                // contents are undefined once it has been presented.
-                if (options.dumpFrames && renderedFrames < 2) {
-                    char path[128] = {};
-                    std::snprintf(path, sizeof(path), "fold-dump-backbuffer-%llu.bmp",
-                                  static_cast<unsigned long long>(renderedFrames));
-                    if (DumpTextureToBmp(device.Device(), device.Context(),
-                                         device.BackBufferTexture(), path)) {
-                        terminal.Write(std::string("\ndumped ") + path + "\n");
-                    }
+            // Dump before Present: with a DISCARD swap chain the back buffer
+            // contents are undefined once it has been presented.
+            if (options.dumpFrames &&
+                (renderedFrames == 0 || renderedFrames == 30 || renderedFrames == 120)) {
+                char path[128] = {};
+                std::snprintf(path, sizeof(path), "fold-dump-backbuffer-%llu.bmp",
+                              static_cast<unsigned long long>(renderedFrames));
+                if (DumpTextureToBmp(device.Device(), device.Context(),
+                                     device.BackBufferTexture(), path)) {
+                    terminal.Write(std::string("\ndumped ") + path + "\n");
                 }
-
-                device.Present(true);
-                ++renderedFrames;
             }
+
+            device.Present(true);
+            ++renderedFrames;
         }
 
         // ---- status line --------------------------------------------------
