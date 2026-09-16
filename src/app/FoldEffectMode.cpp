@@ -271,6 +271,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     DisplaySafetyGate::State lastGateState = DisplaySafetyGate::State::Recovering;
     int lastLidSwitch = overlay.LidSwitchState();
     bool lastDisplayOn = overlay.DisplayOn();
+    unsigned lastInputMask = 0;
 
     // Grabs the desktop into the content texture.
     //
@@ -397,6 +398,27 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // the record that says whether a late effect came from the panel waking
         // up or from something this program did.
         const bool displayOn = overlay.DisplayOn();
+
+        // The four raw inputs, whenever any of them changes.  Sensor age is the
+        // important one: a fusion sensor simply stops publishing while the
+        // machine is still, so "no reading for a while" means "nothing is
+        // moving", not "broken" -- and it also bounds how early the effect can
+        // possibly know where the lid is.
+        const unsigned inputMask = (sensorFresh ? 1u : 0u) |
+                                   (lidSwitch == 0 ? 2u : 0u) |
+                                   (displayOn ? 4u : 0u) |
+                                   (capture.Healthy() ? 8u : 0u);
+        if (inputMask != lastInputMask) {
+            lastInputMask = inputMask;
+            char buffer[220];
+            std::snprintf(buffer, sizeof(buffer),
+                          "\n  [in ] hinge %6.1f  sensorAge %6.2f s  lidSwitch %2d  "
+                          "display %-3s  capture %-4s\n",
+                          hingeAngle, sensorAge, lidSwitch, displayOn ? "on" : "OFF",
+                          capture.Healthy() ? "ok" : "LOST");
+            terminal.Write(buffer);
+        }
+
         if (displayOn != lastDisplayOn) {
             lastDisplayOn = displayOn;
             note(displayOn ? "monitor power on" : "monitor power off", hingeAngle);
