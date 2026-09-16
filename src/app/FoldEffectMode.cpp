@@ -136,6 +136,29 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // Keeps the ray-plane projection near identity; see FoldRenderer.h.
     parameters.eyeDistancePx = static_cast<float>(width) * 6.4f;
 
+    switch (options.glassPreset) {
+    case FoldEffectOptions::GlassPreset::Frosted:
+        break;  // the documented defaults are the frosted look
+    case FoldEffectOptions::GlassPreset::Clear:
+        // Barely any scatter: the pane is a sheet of window glass, so the
+        // dispersion at the edges and the reflection sweep carry the effect.
+        parameters.blurStrength = 14.0f;
+        parameters.sheenStrength = 0.30f;
+        parameters.edgeGlow = 0.50f;
+        parameters.dispersionPx = 5.0f;
+        parameters.scatterDesaturation = 0.12f;
+        parameters.attenuationFloor = 0.88f;
+        break;
+    case FoldEffectOptions::GlassPreset::Plain:
+        // The bare model, for comparing against the glass cues.
+        parameters.sheenStrength = 0.0f;
+        parameters.edgeGlow = 0.0f;
+        parameters.dispersionPx = 0.0f;
+        parameters.scatterDesaturation = 0.0f;
+        parameters.attenuationFloor = 0.35f;
+        break;
+    }
+
     const UINT dpi = GetDpiForWindow(overlay.Handle());
 
     FoldRenderer renderer;
@@ -193,12 +216,20 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     std::snprintf(setup, sizeof(setup),
                   "  display %ux%u, %u dpi -> eye distance %.0f px\n"
                   "  activation %.0f deg, blur %.0f/1000px, darken %.3f, max delta %.0f deg\n"
+                  "  glass %s (sheen %.2f, edge %.2f, dispersion %.1f px)\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
                   "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
                   "  claim keep-awake: display %s, system-while-closed %s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
+                  options.glassPreset == FoldEffectOptions::GlassPreset::Clear
+                      ? "clear"
+                      : (options.glassPreset == FoldEffectOptions::GlassPreset::Plain
+                             ? "plain"
+                             : "frost"),
+                  parameters.sheenStrength, parameters.edgeGlow,
+                  parameters.dispersionPx,
                   capture.Width(), capture.Height(), static_cast<int>(capture.Format()),
                   width, height, overlay.DisplayOn() ? "on" : "off",
                   overlay.DisplayNotifyActive() ? "yes" : "NO",
@@ -260,6 +291,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     double lastReportSeconds = -1.0;
     double lastRecoverySeconds = -1.0;
     double lastRefreshSeconds = 0.0;
+    // When the content texture last received a real desktop frame.  A snapshot
+    // that is much older than this stops counting as drawable.
+    double lastCaptureSeconds = SteadySeconds();
     std::size_t lastLineLength = 0;
     bool lastEffectWanted = false;
     uint64_t renderedFrames = 0;
@@ -281,8 +315,10 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // exactly what the content texture holds.  So "no new frame" means the frame
     // in hand is still the current desktop, and it can be used as is.
     //
-    // The duplication being dead is the one real failure: the texture then holds
-    // something that can no longer be trusted, and the caller must not draw it.
+    // The duplication being dead is no longer treated as fatal to the pass: the
+    // texture still holds the last real desktop, and the desktop is static
+    // whenever the panel is off -- which is exactly when the duplication dies.
+    // The caller bounds how old that snapshot may be.
     auto grabDesktop = [&]() -> bool {
         // A frame is only worth waiting for when there is nothing in hand; if
         // there is, one non-blocking look is enough, and a timeout proves the
@@ -294,14 +330,23 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                 capture.CopyFrameTo(device.Context(), content.Get());
                 capture.ReleaseFrame();
                 ++captureCount;
+                hasContent = true;
+                lastCaptureSeconds = SteadySeconds();
                 return true;
             }
             if (!capture.Healthy()) {
-                hasContent = false;
-                return false;
+                return hasContent;
             }
         }
-        return hasContent;  // nothing changed: the frame in hand is still current
+        // Nothing changed on screen, so what is in hand is still current.
+        return hasContent;
+    };
+
+    // A snapshot stops being usable when it is old enough that it may no longer
+    // describe the desktop; see FoldEffectOptions::contentMaxAgeSeconds.
+    auto snapshotUsable = [&]() -> bool {
+        return hasContent &&
+               (SteadySeconds() - lastCaptureSeconds) <= options.contentMaxAgeSeconds;
     };
 
     // A small event log, so a run can be read back afterwards: the whole point
@@ -460,63 +505,73 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         }
 
         const bool ready = safety.Update(lidClosedLatch, overlay.DisplayOn(),
-                                         capture.Healthy(), sensorFresh,
-                                         sample.steadySeconds);
+                                         capture.Healthy() || snapshotUsable(),
+                                         sensorFresh, sample.steadySeconds);
         if (safety.Current() != lastGateState) {
             lastGateState = safety.Current();
             note(DisplaySafetyGate::Text(lastGateState), hingeAngle);
         }
 
-        // ---- capture recovery -----------------------------------------------
-        // A duplication that came back DXGI_ERROR_ACCESS_LOST is dead and can
-        // only be replaced -- and it has to be replaced the moment the lid
-        // starts to open, not on a slow retry timer.  While it is missing the
-        // effect cannot be shown at all, so that gap is exactly the part of the
-        // motion the user sees as "the effect never came back".  Closing the lid
-        // is what kills it, so retries are slower while the lid is shut, to
-        // avoid hammering a panel that is still off.
-        const double recoveryInterval = lidClosedLatch ? 0.5 : 0.15;
-        if (!capture.Healthy() &&
-            sample.steadySeconds - lastRecoverySeconds >= recoveryInterval) {
-            lastRecoverySeconds = sample.steadySeconds;
-            if (capture.TryRestart(device.Device())) {
-                note("capture restarted", hingeAngle);
-            }
-        }
-
-        // The replacement can report a different mode than the chain was built
-        // for; follow it rather than drawing a mis-sized frame.
-        if (capture.Healthy() && capture.Width() != 0 && capture.Height() != 0 &&
-            (capture.Width() != width || capture.Height() != height)) {
-            const uint32_t newWidth = capture.Width();
-            const uint32_t newHeight = capture.Height();
-            overlay.Show(false);
-            hasContent = false;
-            overlay.Resize(newWidth, newHeight);
-            device.Resize(newWidth, newHeight);
-            renderer.Resize(newWidth, newHeight);
-            if (!CreateContentTexture(device.Device(), newWidth, newHeight, content)) {
-                terminal.Write(
-                    "\nERROR: could not resize the content texture; stopping.\n");
-                break;
-            }
-            width = newWidth;
-            height = newHeight;
-            parameters.eyeDistancePx = static_cast<float>(width) * 6.4f;
-            safety.Reset();
-        }
-
-        // Past flat the pose cannot be resolved with a single IMU, so the effect
-        // switches itself off and the desktop comes back untouched.
+        // ---- the effect belongs to the act of closing ----------------------
+        // (see the header: keyed to how far below the activation angle the lid
+        // has come, not to the absolute hinge angle)
         //
-        // The threshold is asymmetric on purpose: right at the activation angle
-        // the estimate wanders by about a degree, and a single threshold makes
-        // the overlay pop on and off several times while the lid settles.  Going
-        // on takes a clear delta, going off takes the lid actually being past
-        // the activation angle.
+        // Past flat the pose cannot be resolved with a single IMU, so the effect
+        // switches itself off and the desktop comes back untouched.  The
+        // threshold is asymmetric on purpose: right at the activation angle the
+        // estimate wanders by about a degree, and a single threshold makes the
+        // overlay pop on and off several times while the lid settles.
         const double deltaThreshold = lastEffectWanted ? -0.3 : 0.6;
-        const bool effectWanted = ready && !pastFlat &&
-                                  angleDelta > deltaThreshold && tracker.Valid();
+        const bool preview = options.previewDeltaDegrees > 0.0;
+        const bool effectWanted =
+            ready && tracker.Valid() &&
+            (preview ? true
+                     : (!pastFlat && angleDelta > deltaThreshold));
+        const double renderedDelta =
+            preview ? options.previewDeltaDegrees : angleDelta;
+
+        // ---- housekeeping, only while nothing is being drawn ----------------
+        // Both of these block for tens of milliseconds (DuplicateOutput, a
+        // resize), and doing that mid-fold is exactly what a fast opening makes
+        // visible, so they wait for a moment when nothing is on screen.  The
+        // gate fails closed, so a dead duplication with no usable snapshot has
+        // already forced the effect off by here.
+        if (!effectWanted) {
+            // A duplication that came back DXGI_ERROR_ACCESS_LOST is dead and
+            // can only be replaced.  Closing the lid is what kills it, so
+            // retries are slow while the lid is shut and quick once it is open,
+            // because the effect can only use a fresh capture from that point.
+            const double recoveryInterval = lidClosedLatch ? 0.5 : 0.15;
+            if (!capture.Healthy() &&
+                sample.steadySeconds - lastRecoverySeconds >= recoveryInterval) {
+                lastRecoverySeconds = sample.steadySeconds;
+                if (capture.TryRestart(device.Device())) {
+                    note("capture restarted", hingeAngle);
+                }
+            }
+
+            // The replacement can report a different mode than the chain was
+            // built for; follow it rather than drawing a mis-sized frame.
+            if (capture.Healthy() && capture.Width() != 0 && capture.Height() != 0 &&
+                (capture.Width() != width || capture.Height() != height)) {
+                const uint32_t newWidth = capture.Width();
+                const uint32_t newHeight = capture.Height();
+                overlay.Show(false);
+                hasContent = false;
+                overlay.Resize(newWidth, newHeight);
+                device.Resize(newWidth, newHeight);
+                renderer.Resize(newWidth, newHeight);
+                if (!CreateContentTexture(device.Device(), newWidth, newHeight, content)) {
+                    terminal.Write(
+                        "\nERROR: could not resize the content texture; stopping.\n");
+                    break;
+                }
+                width = newWidth;
+                height = newHeight;
+                parameters.eyeDistancePx = static_cast<float>(width) * 6.4f;
+                safety.Reset();
+            }
+        }
 
         // ---- snapshot policy, the single most important part of this loop ----
         //
@@ -553,6 +608,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                     capture.ReleaseFrame();
                     ++captureCount;
                     hasContent = true;
+                    lastCaptureSeconds = SteadySeconds();
                 }
             }
         } else if (!lastEffectWanted) {
@@ -590,7 +646,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             device.BeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
             renderer.Render(device.Context(), content.Get(),
                             device.BackBuffer(),
-                            static_cast<float>(angleDelta), parameters);
+                            static_cast<float>(renderedDelta), parameters);
 
             // Dump before Present: with a DISCARD swap chain the back buffer
             // contents are undefined once it has been presented.
@@ -613,8 +669,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         if (sample.steadySeconds - lastReportSeconds >= 0.25) {
             lastReportSeconds = sample.steadySeconds;
             std::string line =
-                "\r" + FormatLine(effectWanted ? "FOLD " : "idle ", hingeAngle,
-                                  angleDelta, options.activationAngleDeg,
+                "\r" + FormatLine(preview ? "PREV " : (effectWanted ? "FOLD " : "idle "),
+                                  hingeAngle, renderedDelta,
+                                  options.activationAngleDeg,
                                   DisplaySafetyGate::Text(safety.Current()),
                                   lidMode, overlayVisible, hasContent,
                                   renderedFrames, captureCount);

@@ -377,7 +377,7 @@ OrientationSensor → hingeAngle → delta = 110° - hingeAngle
 
 ### Shader 模型
 
-ray-plane 模型（`Duo-animation` / `duo-open` 共用）+ lid-plane 的**模糊标定**：
+ray-plane 模型（`Duo-animation` / `duo-open` 共用）+ lid-plane 的**模糊标定** + 本项目新增的**玻璃材质线索**：
 
 ```
 固定的内容平面（捕获的桌面，保持激活角的姿态）
@@ -413,6 +413,38 @@ radius = blurStrength × smoothstep(0.08, 1.0, height) × sin(delta) × 屏高/1
 - `height = 1 - uv.y`：**0 在屏幕顶部，1 在铰链处**
 - `smoothstep(0.08, 1.0, …)`：靠近铰链的最后一段保持清晰（参考 lid-plane）
 - 按屏高归一化 → 换分辨率不会改变观感
+
+### 玻璃材质线索（本项目新增，非参考项目做法）
+
+参考实现的观感是「磨砂 + 压暗」，那更像烟熏塑料而不是玻璃。真实玻璃是一块**有两面**的板，
+下面五条线索来自玻璃本身的光学行为，全部由 `FoldEffectParameters` 控制：
+
+| 线索 | 物理来源 | 实现 |
+|---|---|---|
+| **色散** | 玻璃对红/蓝的折射率不同（窗边彩色描边） | 红、蓝通道沿径向反方向各偏移 `dispersionPx × sin(delta)`，绿不动；只在画面仍清晰处混入 |
+| **菲涅尔反射光晕** | 越偏离原平面，反射越强 | `sheenStrength × sin(delta) × height^1.6` 的冷色调渐变 |
+| **扫动高光带** | 房间光源在倾斜表面上扫过 | 高斯带，中心 `0.92 − 0.5·sin(delta)`：合盖时从远边扫向铰链 |
+| **边缘高光** | 玻璃片边缘的亮线 | 远边处的柔和亮带，强度 ∝ `sin(delta)` |
+| **散射去饱和** | 磨砂玻璃透过的光会褪色 | 模糊分量向亮度混 `scatterDesaturation` |
+
+另外把衰减改成**有下限**（`attenuationFloor`）：散射变暗但不到黑，反射再把亮度加回来，
+净效果是「一块被照亮的表面」而不是「一块滤镜」。参考实现的衰减会让画面降到 1/3 以下，
+实测像素均值 17/17/22（原图 28/33/36）—— 这就是"没有玻璃味"的直接原因。
+
+### 材质预设与预览
+
+```powershell
+.\build\Release\DragonflySensorDiag.exe --fold-effect --glass=frost    # 默认：磨砂玻璃
+.\build\Release\DragonflySensorDiag.exe --fold-effect --glass=clear    # 窗玻璃片：几乎不模糊，靠色散与边缘
+.\build\Release\DragonflySensorDiag.exe --fold-effect --glass=plain    # 关闭全部玻璃线索，用于对比
+```
+
+材质的判断只能靠眼睛，而每次「合盖看一眼」太慢，所以有一个固定倾角的预览模式
+（`PREV` 前缀，不会与真实开合混淆）：
+
+```powershell
+.\build\Release\DragonflySensorDiag.exe --fold-effect --glass=clear --glass-preview=55
+```
 
 ### 生命周期与安全门（DisplaySafetyGate）
 
@@ -506,6 +538,8 @@ gate self test: 19 checks, 0 mismatches -> PASS
 | `recoverySettleSeconds` | 0.12 | 环境恢复后到允许效果重新出现之间的稳定期（参考实现 0.5 s，对笔记本开盖太慢） |
 | `keepDisplayAwake` | true | 运行期间阻止空闲超时熄灭屏幕；`--allow-display-off` 关闭 |
 | `keepSystemAwake` | false | 合盖期间阻止进入现代待机（S0ix）；`--keep-system-awake` 打开，见下 |
+| `contentMaxAgeSeconds` | 300 | 手里那张快照最多可用多久；更旧就必须重新抓屏 |
+| `sheenStrength` / `edgeGlow` / `dispersionPx` / `scatterDesaturation` / `attenuationFloor` | 取决于 `--glass` | 玻璃材质线索，见上表 |
 
 ### 关于"开盖后亮屏慢"
 

@@ -60,6 +60,18 @@ struct FoldEffectOptions {
     // the panel faces the keyboard.
     float maxDeltaDegrees = 90.0f;
 
+    // ---------------------------------------------------------------------
+    //  Glass presets.
+    //
+    //  "Frosted" is the reference look plus the glass cues; "clear" drops most
+    //  of the blur so the pane reads as a sheet of window glass laid over the
+    //  desktop, with the dispersion and the edge rim doing the work; "plain" is
+    //  the bare ray-plane model with every glass cue switched off, kept so the
+    //  two can be compared by eye.
+    // ---------------------------------------------------------------------
+    enum class GlassPreset { Frosted, Clear, Plain };
+    GlassPreset glassPreset = GlassPreset::Frosted;
+
     // Blur radius per 1000 px of display height, at the largest delta.  This is
     // lid-plane's constant; the shader turns it into pixels using the actual
     // display height so the look scales with panel size.
@@ -112,6 +124,24 @@ struct FoldEffectOptions {
     // battery and thermals trade -- opting in should be a decision, not a
     // surprise.
     bool keepSystemAwake = false;
+
+    // How old the held snapshot may be before it stops counting as drawable.
+    //
+    // A fold that starts while the duplication happens to be dead can still be
+    // drawn from the last frame captured -- the desktop is static whenever the
+    // panel is off, which is exactly when the duplication dies -- and waiting
+    // for a fresh capture is what leaves the first half of a fast opening
+    // untouched.  The bound is what keeps that from turning into "the effect
+    // shows a desktop from an hour ago" after a long sleep.
+    double contentMaxAgeSeconds = 300.0;
+
+    // Render the effect at a fixed angle and stay there, ignoring the lid.
+    //
+    // The material is a matter of taste and it can only be judged by looking at
+    // it, so this turns "close the lid, open it, look, quit, rebuild" into
+    // "look".  Zero disables it.  The phase in the status line reads PREV so a
+    // preview is never mistaken for a real fold.
+    double previewDeltaDegrees = 0.0;
 };
 
 // Returns 0 on success, non-zero when the effect could not be started.

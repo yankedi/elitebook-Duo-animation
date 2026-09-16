@@ -76,6 +76,8 @@ struct Options {
     bool dumpFrames = false;
     bool allowDisplayOff = false;
     bool keepSystemAwake = false;
+    std::wstring glass = L"frost";
+    double glassPreviewDegrees = 0.0;
     bool help = false;
 };
 
@@ -115,6 +117,8 @@ const wchar_t* kHelp =
     L"  --fold-effect    show the live desktop folding as the lid moves\n"
     L"  --allow-display-off  let the display sleep while --fold-effect runs\n"
     L"  --keep-system-awake  block Modern Standby while the lid is shut\n"
+    L"  --glass=MODE     frost (default) | clear | plain -- the pane's material\n"
+    L"  --glass-preview=DEG  hold the effect at a fixed angle to judge the look\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -205,6 +209,25 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             options.allowDisplayOff = true;
         } else if (argument == L"--keep-system-awake") {
             options.keepSystemAwake = true;
+        } else if (argument.rfind(L"--glass-preview=", 0) == 0) {
+            const std::wstring value = argument.substr(16);
+            wchar_t* end = nullptr;
+            const double degrees = std::wcstod(value.c_str(), &end);
+            if (end == value.c_str() || degrees <= 0.0 || degrees > 90.0) {
+                return false;
+            }
+            options.glassPreviewDegrees = degrees;
+        } else if (argument.rfind(L"--glass=", 0) == 0) {
+            const std::wstring which = argument.substr(8);
+            if (which == L"frost") {
+                options.glass = L"frost";
+            } else if (which == L"clear") {
+                options.glass = L"clear";
+            } else if (which == L"plain") {
+                options.glass = L"plain";
+            } else {
+                return false;
+            }
         } else {
             return false;
         }
@@ -823,6 +846,12 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.dumpFrames = options.dumpFrames;
         foldOptions.keepDisplayAwake = !options.allowDisplayOff;
         foldOptions.keepSystemAwake = options.keepSystemAwake;
+        if (options.glass == L"clear") {
+            foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Clear;
+        } else if (options.glass == L"plain") {
+            foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Plain;
+        }
+        foldOptions.previewDeltaDegrees = options.glassPreviewDegrees;
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();

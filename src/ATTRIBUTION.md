@@ -25,8 +25,7 @@
 5. **on-change 传感器 + overlay 生命周期**
    - 运动时显示 overlay，稳定后隐藏，避免长期用透明顶层窗口覆盖桌面。
 
-6. **激活角 + 角度差驱动**（来源：`lid-plane` 的 README 与 `EffectDefaults` / `MotionPolicy`）
-   - 效果不以「绝对屏幕角」为参数，而是以「低于激活角多少」为参数：
+6. **激活角 + 角度差驱动**（来源：`lid-plane` 的 README 与 `EffectDefaults` / `MotionPolicy`）   - 效果不以「绝对屏幕角」为参数，而是以「低于激活角多少」为参数：
      `delta = 激活角 - 屏幕角`。激活角以上桌面完全不处理（正常使用），
      低于激活角才开始出现效果，delta 越大越强。
    - 效果语义：内容保持激活角，物理屏幕绕它倾斜（`holds your desktop at an
@@ -42,6 +41,12 @@
    - Windows 侧实现完全不同：`RegisterPowerSettingNotification` +
      `GUID_CONSOLE_DISPLAY_STATE` / `GUID_LIDSWITCH_STATE_CHANGE`、`WM_DISPLAYCHANGE`、
      `IDXGIOutputDuplication` 的失效检测；`DisplaySafetyGate` 为纯逻辑类并带 `--selftest` 用例。
+8. **玻璃材质线索**（**本项目自行设计，不来自任何参考项目**）
+   - 色散（红/蓝反向径向偏移）、菲涅尔式反射光晕、扫动高光带、边缘高光、散射去饱和、
+     带下限的衰减：依据真实玻璃的光学行为（折射率差、菲涅尔反射、散射褪色）设计。
+   - 参考项目只有「模糊 + 压暗」，观感偏塑料；这些线索是为"玻璃感"新增的，
+     参数集中在 `FoldEffectParameters` 并提供 `--glass=frost|clear|plain` 预设与
+     `--glass-preview=DEG` 预览模式。
 
 以上概念在 `src\` 中的 Windows 实现（第二阶段）会以 HLSL 重新编写，不会复用 AGSL/Metal 源码。
 

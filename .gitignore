@@ -15,6 +15,9 @@ obj/
 startup-report.txt
 *.csv
 
+# --dump-frames writes these; they are for looking at, not for keeping.
+fold-dump-*.bmp
+
 # ---------------------------------------------------------------------------
 #  Third-party reference projects
 #
@@ -23,7 +26,9 @@ startup-report.txt
 #  read-only reference material, and they are deliberately NOT tracked here --
 #  an outer repository would otherwise treat them as embedded repositories.
 #
-#  lid-plane is explicitly excluded from this project's reference set.
+#  lid-plane (GPL-3.0) is strategy-only: its gate and activation-angle model
+#  are reimplemented from its documented behaviour, no code or shader text is
+#  copied, and nothing here links against it.
 # ---------------------------------------------------------------------------
 /Duo-animation/
 /duo-open/

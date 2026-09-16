@@ -23,10 +23,13 @@ namespace dragonfly {
 // Tunables.  The first three come from Duo-animation's FoldParameters, which is
 // where the reference project landed after tuning on real hardware.
 struct FoldEffectParameters {
-    // Largest angle delta handed to the shader, in degrees.  lid-plane clamps
-    // its delta to roughly 1.25 rad (72 degrees); 60 is used here to keep the
-    // blur kernel within a cheap sampling budget.
-    float maxDeltaDegrees = 60.0f;
+    // Largest angle delta handed to the shader, in degrees.
+    //
+    // 90 is where sin() peaks: over the range a laptop actually shows --
+    // 110 degrees of hinge down to about 25 -- the blur keeps responding to the
+    // lid, and any plateau lands below 20 degrees, where the panel faces the
+    // keyboard.
+    float maxDeltaDegrees = 90.0f;
 
     // Blur radius per 1000 px of display height, at the largest delta.
     // This is lid-plane's constant (65); the shader turns it into pixels using
@@ -35,6 +38,27 @@ struct FoldEffectParameters {
 
     // Fraction of light lost per pixel of blur radius.
     float darkening = 0.015f;
+
+    // Darkest the scattered light is allowed to get.  The reference lets it
+    // reach zero, which turns the pane into a dark filter; glass is a lit
+    // surface, so the scatter bottoms out and the reflection adds light back.
+    float attenuationFloor = 0.72f;
+
+    // ---- glass cues, see FoldShaderSource.h ------------------------------
+    // Reflection wash at full tilt.  A Fresnel surface reflects more the
+    // further it is from the plane, which is what makes this grow with delta.
+    float sheenStrength = 0.22f;
+
+    // Brightness of the rim where the pane ends (the far edge), at full tilt.
+    float edgeGlow = 0.34f;
+
+    // Per-channel radial offset at full tilt, in pixels: red one way, blue the
+    // other.  This is the colour fringe that says "glass" rather than "blur".
+    float dispersionPx = 2.4f;
+
+    // How colourless the scattered light becomes.  Light that has been through
+    // frosted glass loses its colour.
+    float scatterDesaturation = 0.35f;
 
     // Eye distance from the content plane, in pixels.  Only used to keep the
     // ray-plane projection near identity, so the effect reads as glass rather
