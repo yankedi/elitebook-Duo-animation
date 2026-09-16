@@ -378,6 +378,8 @@ std::string FormatStartupReport(const std::vector<ChannelInfo>& channels,
     out += Line("  --glass=MODE    frost | clear (default) | plain -- the pane's material");
     out += Line("  --glass-preview=DEG  hold the effect at a fixed angle to judge the look");
     out += Line("  --blur=N --dispersion=N --sheen=N --edge=N   material overrides");
+    out += Line("  --eye=MM        eye distance from the pane (default 450 mm)");
+    out += Line("  --parallax=N    0 = picture glued to the panel, 1 = anchored in the room");
     out += Line("");
     out += Line("  Fold progress is a visual quantity; no physical angle is estimated.");
     out += Line("");

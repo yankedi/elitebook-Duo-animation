@@ -85,6 +85,15 @@ struct FoldEffectOptions {
     float sheenOverride = -1.0f;
     float edgeOverride = -1.0f;
 
+    // How far the eye is from the content plane, in millimetres.  This is the
+    // knob that decides how strongly the picture stays put: closer means more
+    // parallax.  450 mm is a comfortable viewing distance for a laptop.
+    float eyeDistanceMm = 450.0f;
+    // Overrides eyeDistanceMm when positive; see the command line.
+    float eyeDistanceMmOverride = -1.0f;
+    // Overrides the preset's parallax (0 = glued to the panel, 1 = anchored).
+    float parallaxOverride = -1.0f;
+
     // Blur radius per 1000 px of display height, at the largest delta.  This is
     // lid-plane's constant; the shader turns it into pixels using the actual
     // display height so the look scales with panel size.

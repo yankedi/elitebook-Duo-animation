@@ -414,6 +414,36 @@ radius = blurStrength × smoothstep(0.08, 1.0, height) × sin(delta) × 屏高/1
 - `smoothstep(0.08, 1.0, …)`：靠近铰链的最后一段保持清晰（参考 lid-plane）
 - 按屏高归一化 → 换分辨率不会改变观感
 
+### Shader 模型：屏幕是窗户，画面留在房间里
+
+模型取自 `iphone-duo`（见 `ATTRIBUTION.md`）。它的片元着色器把这个想法写得最清楚：
+
+```glsl
+vec3 ray = displayPosition - displayCamera;                               // 眼睛 → 像素
+vec3 intersection = displayCamera + ray * (-displayCamera.z / rayDepth);  // 打到不动的平面
+vec2 planeUv = intersection.xy / planeSize + 0.5;
+vec2 projectedUv = mix(screenUv, planeUv, parallax * projection);         // 贴屏 ←→ 世界锚定
+```
+
+**眼睛固定在身体坐标系里，画面锚定在一个不动的平面上**；屏幕旋转时只是"窗户"在转，
+画面因此在本来的虚拟位置上滑动 —— 就像你转动一块玻璃，墙上的画在玻璃里滑过。
+
+决定成败的只有一件事：**眼睛距离**。
+
+| 眼睛距离 | 视差 | 观感 |
+|---|---|---|
+| 6.4 × 屏宽 ≈ 1.9 m（旧实现，照抄参考的 `450mm/70mm` 比例） | 最大 ~1.5% | 画面像**贴在屏幕上**，只剩梯形和模糊 |
+| **450 mm**（真实观看距离，当前默认） | 最大 ~45% | 画面**留在房间里**，屏幕转动时从画面上滑过 |
+
+换算必须用**面板的物理尺寸**：桌面覆盖整个面板，所以 `px/mm = 桌面宽度 / 面板宽度`。
+Windows 报的 DPI 是逻辑 DPI（显示缩放会改它），不能用。面板宽度从 **EDID** 读取
+（本机实测 294 mm → 6.53 px/mm → 450 mm = 2939 px）。
+
+- `parallax`：0 = 画面贴屏（旧模型），1 = 世界锚定；两者之间可以交叉淡入
+- 眼睛位置默认在屏幕中线高度（`eyeUpPx = 屏高/2`），即人坐在笔记本前的实际眼高
+- 画面滑出内容平面之外时，采样被钳制，因此那一片会淡入反射色 —— 读起来像**玻璃边缘反光**，
+  而不是被拉长的边框
+
 ### 玻璃材质线索（本项目新增，非参考项目做法）
 
 参考实现的观感是「磨砂 + 压暗」，那更像烟熏塑料而不是玻璃。真实玻璃是一块**有两面**的板，
@@ -534,7 +564,10 @@ gate self test: 19 checks, 0 mismatches -> PASS
 | `maxDeltaDegrees` | 60 | 交给 shader 的最大角度差 |
 | `blurStrength` | 65 | 每 1000 px 屏高、在最大 delta 时的模糊半径（lid-plane 的常量） |
 | `darkening` | 0.015 | 每像素模糊半径造成的亮度衰减 |
-| `eyeDistancePx` | 12 288 | 视点到内容平面的距离（= 6.4 × 屏宽），保持投影接近恒等 |
+| `eyeDistancePx` | 2939（= 450 mm） | **决定视差强度**：视点 → 内容平面。太小会"贴屏"，太大会"贴玻璃" |
+| `eyeUpPx` | 屏高/2 | 眼睛相对铰链的高度，沿内容平面 |
+| `parallax` | 1.0 | 0 = 画面贴屏（旧模型），1 = 世界锚定 |
+| `edgeFadePx` | 屏高×0.06 | 画面滑出平面后淡入反射色的宽度 |
 | `recoverySettleSeconds` | 0.12 | 环境恢复后到允许效果重新出现之间的稳定期（参考实现 0.5 s，对笔记本开盖太慢） |
 | `keepDisplayAwake` | true | 运行期间阻止空闲超时熄灭屏幕；`--allow-display-off` 关闭 |
 | `keepSystemAwake` | false | 合盖期间阻止进入现代待机（S0ix）；`--keep-system-awake` 打开，见下 |

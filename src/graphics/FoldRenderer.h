@@ -60,10 +60,29 @@ struct FoldEffectParameters {
     // frosted glass loses its colour.
     float scatterDesaturation = 0.35f;
 
-    // Eye distance from the content plane, in pixels.  Only used to keep the
-    // ray-plane projection near identity, so the effect reads as glass rather
-    // than as a magnified image.
-    float eyeDistancePx = 12000.0f;
+    // Eye distance from the content plane, in pixels.
+    //
+    // This is the parameter that decides whether the picture is anchored in the
+    // room or glued to the panel.  At 6.4x the panel width (the number taken
+    // from the reference, about two metres) the parallax is a fraction of a
+    // percent and the effect collapses into "keystone plus blur".  At a real
+    // viewing distance the far edge swings through the projection hard enough
+    // for the picture to visibly stay put while the panel turns.
+    float eyeDistancePx = 3000.0f;
+
+    // Eye height above the hinge, along the content plane, in pixels.  Defaults
+    // to half the panel height: a user sits with their eye roughly level with
+    // the middle of the screen.
+    float eyeUpPx = 540.0f;
+
+    // 0 = picture glued to the panel (the model used before), 1 = anchored in
+    // the body frame.  Everything in between cross-fades.
+    float parallax = 1.0f;
+
+    // Width of the fade where the sample runs past the content plane, in pixels.
+    // Without it the clamped border smears; with it the edge reads as the pane
+    // catching light.
+    float edgeFadePx = 60.0f;
 
     // A laptop lid hinges on the bottom edge of the panel.
     bool hingeFromTop = false;

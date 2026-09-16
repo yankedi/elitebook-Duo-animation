@@ -82,6 +82,8 @@ struct Options {
     double dispersionOverride = -1.0;
     double sheenOverride = -1.0;
     double edgeOverride = -1.0;
+    double parallaxOverride = -1.0;
+    double eyeDistanceMm = -1.0;
     bool help = false;
 };
 
@@ -137,6 +139,9 @@ const wchar_t* kHelp =
     L"  --glass=MODE     frost | clear (default) | plain -- the pane's material\n"
     L"  --glass-preview=DEG  hold the effect at a fixed angle to judge the look\n"
     L"  --blur=N --dispersion=N --sheen=N --edge=N   material overrides\n"
+    L"  --eye=MM        eye distance from the pane (default 450). Smaller = the\n"
+    L"                  picture stays put more strongly while the lid moves\n"
+    L"  --parallax=N    0 = picture glued to the panel, 1 = anchored in the room\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -260,6 +265,14 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             }
         } else if (argument.rfind(L"--edge=", 0) == 0) {
             if (!ParseNumberArgument(argument, 7, options.edgeOverride)) {
+                return false;
+            }
+        } else if (argument.rfind(L"--parallax=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 11, options.parallaxOverride)) {
+                return false;
+            }
+        } else if (argument.rfind(L"--eye=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 6, options.eyeDistanceMm)) {
                 return false;
             }
         } else {
@@ -892,6 +905,8 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.dispersionOverride = static_cast<float>(options.dispersionOverride);
         foldOptions.sheenOverride = static_cast<float>(options.sheenOverride);
         foldOptions.edgeOverride = static_cast<float>(options.edgeOverride);
+        foldOptions.parallaxOverride = static_cast<float>(options.parallaxOverride);
+        foldOptions.eyeDistanceMmOverride = static_cast<float>(options.eyeDistanceMm);
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();

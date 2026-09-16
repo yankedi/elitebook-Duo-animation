@@ -6,7 +6,7 @@
 |---|---|---|
 | `Duo-animation` | **无 LICENSE 文件**（默认保留所有权利） | 仅作算法/思路参考。未复制任何代码或着色器文本。 |
 | `duo-open` | MIT (Copyright (c) 2026 marcoazeem) | 仅作架构参考（overlay 生命周期、capture 流程）。未复制代码。 |
-| `iphone-duo` | MIT（代码与 SVG 素材）；Apple 模型/壁纸不受 MIT 覆盖 | 仅作视觉目标参考（投影/blur/darkening 的观感）。未复制代码或素材。 |
+| `iphone-duo` | MIT（代码与 SVG 素材）；Apple 模型/壁纸不受 MIT 覆盖 | **世界锚定窗口模型**（眼睛固定在身体坐标系、射线打到不动的平面、`mix(screenUv, planeUv, parallax)`）。未复制代码。 |
 | `iphone-duo-animation` | MIT (Copyright (c) 2026 Akash T) | 仅作视觉目标参考（折叠几何、曲面过渡）。未复制代码。 |
 | `lid-plane` (jh3y/lid-plane) | **GPL-3.0-or-later** | **仅作策略参考**：激活角语义、角度差驱动、按屏高归一化的模糊标定、`DisplaySafetyGate`（合盖/显示器不可用/传感器失联时暂停并隐藏，恢复后等待稳定期）。GPL 源码**未复制、未改写、未链接**；本项目为独立实现，见下文第 6、7 条。 |
 
@@ -41,7 +41,17 @@
    - Windows 侧实现完全不同：`RegisterPowerSettingNotification` +
      `GUID_CONSOLE_DISPLAY_STATE` / `GUID_LIDSWITCH_STATE_CHANGE`、`WM_DISPLAYCHANGE`、
      `IDXGIOutputDuplication` 的失效检测；`DisplaySafetyGate` 为纯逻辑类并带 `--selftest` 用例。
-8. **玻璃材质线索**（**本项目自行设计，不来自任何参考项目**）
+8. **世界锚定窗口模型**（来源：`iphone-duo` 的 `screen-material.ts` 片元着色器）
+   - 眼睛固定在**身体坐标系**（笔记本底座/房间），不随屏幕转动；
+   - 内容是一个**不动的平面**；逐像素从眼睛发出射线，穿过**转动中的**屏幕点，
+     与那个平面求交，用交点采样画面；
+   - 屏幕因此只是一扇"窗户"：屏幕动，画面留在它的虚拟位置上；
+   - `parallax` 在"贴屏"与"世界锚定"之间插值。
+   - 关键换算：眼距必须用**真实距离**（mm），并用面板物理宽度（EDID）换算像素；
+     参考项目里 `450mm/70mm` 那个比例放到笔记本上等于把眼睛放到 1.9 m 外，视差会消失。
+   - 本项目实现为 HLSL + D3D11，几何（铰链在底边、1D 倾斜）与参考的 3D 折叠模型不同。
+
+9. **玻璃材质线索**（**本项目自行设计，不来自任何参考项目**）
    - 色散（红/蓝反向径向偏移）、菲涅尔式反射光晕、扫动高光带、边缘高光、散射去饱和、
      带下限的衰减：依据真实玻璃的光学行为（折射率差、菲涅尔反射、散射褪色）设计。
    - 参考项目只有「模糊 + 压暗」，观感偏塑料；这些线索是为"玻璃感"新增的，

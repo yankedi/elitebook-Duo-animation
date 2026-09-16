@@ -46,6 +46,69 @@ bool CreateContentTexture(ID3D11Device* device, uint32_t width, uint32_t height,
     return SUCCEEDED(device->CreateTexture2D(&description, nullptr, &out));
 }
 
+// ---------------------------------------------------------------------------
+//  Physical panel geometry
+//
+//  The projection needs distances in *pixels*, and the conversion is the panel's
+//  own scale: the desktop covers the panel, so px/mm = desktop width / panel
+//  width.  Windows' reported DPI is the logical one -- it is what display
+//  scaling changes -- so it cannot be used for this.
+// ---------------------------------------------------------------------------
+BOOL CALLBACK FindPrimaryMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM context) {
+    MONITORINFOEXW info{};
+    info.cbSize = sizeof(info);
+    if (GetMonitorInfoW(monitor, &info) != FALSE &&
+        (info.dwFlags & MONITORINFOF_PRIMARY) != 0) {
+        *reinterpret_cast<std::wstring*>(context) = info.szDevice;
+        return FALSE;  // found it, stop enumerating
+    }
+    return TRUE;
+}
+
+// Physical width of the primary panel in millimetres, from its EDID.  Returns 0
+// when the EDID cannot be read, and the caller falls back to a nominal panel.
+double PrimaryPanelWidthMm() {
+    std::wstring adapter;
+    EnumDisplayMonitors(nullptr, nullptr, FindPrimaryMonitor,
+                        reinterpret_cast<LPARAM>(&adapter));
+    if (adapter.empty()) {
+        return 0.0;
+    }
+
+    DISPLAY_DEVICEW monitor{};
+    monitor.cb = sizeof(monitor);
+    if (EnumDisplayDevicesW(adapter.c_str(), 0, &monitor, 0) == FALSE) {
+        return 0.0;
+    }
+
+    // monitor.DeviceID looks like MONITOR\AUO1234\{GUID}\0001, which is also its
+    // path under Enum in the registry.
+    const std::wstring key = L"SYSTEM\\CurrentControlSet\\Enum\\" +
+                             std::wstring(monitor.DeviceID) + L"\\Device Parameters";
+    HKEY handle = nullptr;
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, key.c_str(), 0, KEY_READ, &handle) !=
+        ERROR_SUCCESS) {
+        return 0.0;
+    }
+
+    BYTE edid[256] = {};
+    DWORD size = sizeof(edid);
+    DWORD type = 0;
+    const LSTATUS status =
+        RegQueryValueExW(handle, L"EDID", nullptr, &type, edid, &size);
+    RegCloseKey(handle);
+    if (status != ERROR_SUCCESS || size < 24) {
+        return 0.0;
+    }
+
+    // EDID bytes 21 and 22 hold the image size in centimetres.
+    const uint32_t widthMm = static_cast<uint32_t>(edid[21]) * 10u;
+    if (widthMm < 50 || widthMm > 2000) {
+        return 0.0;
+    }
+    return static_cast<double>(widthMm);
+}
+
 int PollConsoleKey() {
     if (!_kbhit()) {
         return 0;
@@ -133,16 +196,32 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     parameters.maxDeltaDegrees = options.maxDeltaDegrees;
     parameters.blurStrength = options.blurStrength;
     parameters.darkening = options.darkening;
-    // Keeps the ray-plane projection near identity; see FoldRenderer.h.
-    parameters.eyeDistancePx = static_cast<float>(width) * 6.4f;
+
+    // ---- physical geometry -------------------------------------------------
+    // The eye distance has to be a real distance, because it is the parallax
+    // that makes the picture stay put while the panel turns.  It is given in
+    // millimetres and converted with the panel's own scale, which comes from its
+    // EDID; a nominal 13.3" panel is the fallback.
+    const double panelWidthMm = PrimaryPanelWidthMm();
+    const double pxPerMm = (panelWidthMm > 0.0)
+                               ? (static_cast<double>(width) / panelWidthMm)
+                               : (static_cast<double>(width) / 294.0);
+    parameters.eyeDistancePx =
+        static_cast<float>(options.eyeDistanceMm * pxPerMm);
+    // Eye level with the middle of the screen, which is where a person sitting
+    // in front of a laptop actually has it.
+    parameters.eyeUpPx = static_cast<float>(height) * 0.5f;
+    parameters.edgeFadePx = static_cast<float>(height) * 0.06f;
 
     switch (options.glassPreset) {
     case FoldEffectOptions::GlassPreset::Frosted:
-        break;  // the documented defaults are the frosted look
+        // Frosted pane: the world-anchored picture seen through scatter.
+        parameters.blurStrength = 26.0f;
+        break;
     case FoldEffectOptions::GlassPreset::Clear:
         // Barely any scatter: the pane is a sheet of window glass, so the
         // dispersion at the edges and the reflection sweep carry the effect.
-        parameters.blurStrength = 14.0f;
+        parameters.blurStrength = 10.0f;
         parameters.sheenStrength = 0.30f;
         parameters.edgeGlow = 0.50f;
         parameters.dispersionPx = 5.0f;
@@ -150,7 +229,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         parameters.attenuationFloor = 0.88f;
         break;
     case FoldEffectOptions::GlassPreset::Plain:
-        // The bare model, for comparing against the glass cues.
+        // The model as it was before: picture glued to the panel, no glass cues.
+        // Kept so the two can be compared directly.
+        parameters.parallax = 0.0f;
         parameters.sheenStrength = 0.0f;
         parameters.edgeGlow = 0.0f;
         parameters.dispersionPx = 0.0f;
@@ -171,6 +252,13 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     }
     if (options.edgeOverride >= 0.0f) {
         parameters.edgeGlow = options.edgeOverride;
+    }
+    if (options.parallaxOverride >= 0.0f) {
+        parameters.parallax = options.parallaxOverride;
+    }
+    if (options.eyeDistanceMmOverride > 0.0f) {
+        parameters.eyeDistancePx =
+            static_cast<float>(options.eyeDistanceMmOverride * pxPerMm);
     }
 
     const UINT dpi = GetDpiForWindow(overlay.Handle());
@@ -231,6 +319,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   "  display %ux%u, %u dpi -> eye distance %.0f px\n"
                   "  activation %.0f deg, blur %.0f/1000px, darken %.3f, max delta %.0f deg\n"
                   "  glass %s (sheen %.2f, edge %.2f, dispersion %.1f px)\n"
+                  "  panel %.0f mm (%.2f px/mm), eye %.0f mm -> %.0f px, parallax %.2f\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
                   "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
                   "  claim keep-awake: display %s, system-while-closed %s\n\n",
@@ -244,6 +333,10 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                              : "frost"),
                   parameters.sheenStrength, parameters.edgeGlow,
                   parameters.dispersionPx,
+                  panelWidthMm > 0.0 ? panelWidthMm : 294.0, pxPerMm,
+                  options.eyeDistanceMmOverride > 0.0f ? options.eyeDistanceMmOverride
+                                                      : options.eyeDistanceMm,
+                  parameters.eyeDistancePx, parameters.parallax,
                   capture.Width(), capture.Height(), static_cast<int>(capture.Format()),
                   width, height, overlay.DisplayOn() ? "on" : "off",
                   overlay.DisplayNotifyActive() ? "yes" : "NO",

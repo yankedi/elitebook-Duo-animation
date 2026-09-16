@@ -17,7 +17,7 @@ namespace dragonfly {
 
 namespace {
 
-// Must stay in sync with the cbuffer in FoldShaderSource.h: three 16-byte rows.
+// Must stay in sync with the cbuffer in FoldShaderSource.h: four 16-byte rows.
 struct FoldConstants {
     float resolution[2];
     float angleDelta;
@@ -32,6 +32,11 @@ struct FoldConstants {
     float edgeGlow;
     float dispersionPx;
     float scatterDesaturation;
+
+    float parallax;
+    float eyeUpPx;
+    float edgeFadePx;
+    float padding;
 };
 
 constexpr float kPi = 3.14159265358979323846f;
@@ -219,6 +224,10 @@ void FoldRenderer::Render(ID3D11DeviceContext* context,
     constants.edgeGlow = parameters.edgeGlow;
     constants.dispersionPx = parameters.dispersionPx;
     constants.scatterDesaturation = parameters.scatterDesaturation;
+    constants.parallax = std::clamp(parameters.parallax, 0.0f, 1.0f);
+    constants.eyeUpPx = parameters.eyeUpPx;
+    constants.edgeFadePx = parameters.edgeFadePx;
+    constants.padding = 0.0f;
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (SUCCEEDED(context->Map(m_constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,

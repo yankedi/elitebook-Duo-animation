@@ -3,51 +3,35 @@
 //
 //  HLSL for the lid effect.
 //
-//  Strategy is taken from lid-plane (jh3y/lid-plane, GPL-3.0-or-later): hold
-//  the desktop at an apparent fixed angle and blur it progressively as the lid
-//  closes below an activation angle.  Its README states the illusion: the
-//  content holds its angle while the physical display tilts around it.
+//  The model is iphone-duo's (see src/ATTRIBUTION.md): the screen is a *window*,
+//  and the picture lives on a plane that is fixed in the body's frame -- the
+//  room, not the panel.  Its fragment shader is the clearest statement of it:
 //
-//  The implementation here is independent -- different capture API, different
-//  renderer, HLSL instead of Metal -- but the model is deliberately the same:
+//      vec3 ray = displayPosition - displayCamera;
+//      vec3 intersection = displayCamera + ray * (-displayCamera.z / rayDepth);
+//      vec2 planeUv = intersection.xy / planeSize + 0.5;
+//      vec2 projectedUv = mix(screenUv, planeUv, parallax * projection);
 //
-//    * `height` is 0 at the hinge and 1 at the far edge, matching lid-plane's
-//      `height = 1.0 - uv.y`;
-//    * the pane rotates about the hinge by the angle delta, its far edge
-//      lifting towards the viewer;
-//    * per pixel a ray is traced from the eye through the pane and continued to
-//      the content plane, so the picture appears to keep the activation angle
-//      instead of following the panel;
-//    * the blur radius grows with sin(delta) and with height, so the area near
-//      the hinge stays crisp;
-//    * the radius is normalised by display height, which is what makes the look
-//      scale with panel size rather than with resolution.
+//  A ray is cast from the eye through the *moving* pixel and intersected with a
+//  plane that does not move, and that intersection is what gets sampled.  So
+//  when the lid tilts, the content slides across the panel exactly as a picture
+//  on a wall slides across a window you are turning.  lid-plane states the same
+//  illusion from the other end: "the content holds its angle while the physical
+//  display tilts around it".
 //
-//  On top of that model sit the cues that make the result read as *glass*
-//  rather than as frosted plastic.  All five are the same trick: real glass is
-//  a slab with two surfaces, and none of them can be had from blur alone.
+//  The one thing that makes or breaks it is the eye distance.  Put the eye two
+//  metres away and the parallax is a fraction of a percent -- the picture looks
+//  glued to the panel and all that is left is a keystone and a blur.  At a
+//  believable viewing distance (about 450 mm) the far edge of the panel swings
+//  through the projection hard enough for the picture to visibly stay put.
 //
-//    1. dispersion -- glass bends each wavelength by a slightly different
-//       amount, which is where the colour fringe on the edge of a window pane
-//       comes from.  Applied only where the image is still sharp; inside a
-//       heavy blur it is invisible anyway.
-//    2. reflection sheen -- a reflection that grows with the tilt (a Fresnel
-//       surface reflects more the further it is from the plane) and is
-//       brightest at the far edge.
-//    3. a highlight band that sweeps down the pane as the lid closes, which is
-//       what a room light does when a surface tilts under it.
-//    4. scattering desaturated -- light that has been through frosted glass
-//       loses its colour, so the scattered part is mixed towards luminance.
-//    5. attenuation with a floor: the scattered light dims but never to black,
-//       and the reflection above adds brightness back, so the net effect is a
-//       lit surface rather than a dark filter.
-//
-//  Deliberate differences from the reference:
-//    * a laptop lid hinges on a HORIZONTAL line at the bottom edge;
-//    * the blur is a Vogel disk gathered in one pass rather than four
-//      pre-blurred mip levels blended together;
-//    * the reflection is a tinted sheen rather than a captured environment,
-//      which the desktop duplication API does not provide.
+//  On top of that model sits the glass: the blur that comes from the gap
+//  between the pane and the content plane (the same quantity duo-open uses), and
+//  five cues taken from real glass -- dispersion, a Fresnel-style reflection
+//  wash, a highlight band that sweeps with the tilt, an edge rim, and scattered
+//  light losing its colour.  Where the picture runs out beyond the content
+//  plane, the sample is clamped and the area fades into that reflection, so the
+//  edge reads as the pane catching light rather than as a smeared border.
 // ---------------------------------------------------------------------------
 #pragma once
 
@@ -82,7 +66,8 @@ cbuffer EffectConstants : register(b0)
     float2 resolution;          // output size in pixels
     float  angleDelta;          // radians the lid has closed past the activation
                                 // angle; 0 or less means the effect is off
-    float  eyeDistancePx;       // eye distance from the content plane, pixels
+    float  eyeDistancePx;       // eye to content plane, pixels (a real viewing
+                                // distance, not a nominal one)
 
     float  blurStrength;        // blur radius per 1000 px of height at max delta
     float  darkening;           // light lost per pixel of blur radius
@@ -93,6 +78,12 @@ cbuffer EffectConstants : register(b0)
     float  edgeGlow;            // brightness of the far-edge rim
     float  dispersionPx;        // per-channel radial offset at full tilt
     float  scatterDesaturation; // how colourless the scattered light becomes
+
+    float  parallax;            // 0 = picture glued to the panel (old model),
+                                // 1 = fully anchored in the body frame
+    float  eyeUpPx;             // eye height above the hinge, along the plane
+    float  edgeFade;            // width of the fade at the content plane's edge
+    float  padding;
 };
 
 Texture2D    contentTexture : register(t0);
@@ -143,29 +134,46 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     }
 
     const float2 fragCoord = uv * resolution;
+    const float2 maxCoord = resolution - 1.0;
 
     // 0 at the edge opposite the hinge, 1 right at the hinge.
     const float height = (hingeFromTop > 0.5) ? uv.y : (1.0 - uv.y);
     const float d = height * resolution.y;   // pixels from the hinge
 
-    // The pane rotated about the hinge, its far edge lifting towards the eye.
+    // ---- the window ---------------------------------------------------------
+    // The pane rotates about the hinge by delta, so a point d from the hinge
+    // sits d*sin(delta) closer to the eye and d*cos(delta) shorter along the
+    // plane.  The ray from the eye through that point is continued until it
+    // meets the content plane, which has not moved.
     const float hingeY = (hingeFromTop > 0.5) ? 0.0 : resolution.y;
     const float side = (hingeFromTop > 0.5) ? 1.0 : -1.0;
     const float2 pane = float2(fragCoord.x, hingeY + side * d * cos(delta));
     const float gap = d * sin(delta);
 
-    // Ray eye -> pane point, continued until it meets the content plane.
-    const float2 eye = resolution * 0.5;
+    const float2 eye = float2(resolution.x * 0.5, hingeY + side * eyeUpPx);
     const float depth = eyeDistancePx - gap;
     if (depth <= 1e-3)
     {
         return float4(0.0, 0.0, 0.0, 1.0);
     }
-    const float2 hit = eye + (pane - eye) * (eyeDistancePx / depth);
 
-    // lid-plane's calibration: the radius grows with sin(delta), the display
-    // height keeps it independent of resolution, and the smoothstep leaves the
-    // last few percent near the hinge sharp.
+    const float2 anchored = eye + (pane - eye) * (eyeDistancePx / depth);
+
+    // parallax = 0 glues the picture to the panel; 1 leaves it where it is in
+    // the room.  Everything downstream works on whichever was chosen.
+    const float2 coord = lerp(fragCoord, anchored, saturate(parallax));
+
+    // Where the window has moved past the picture, the sample is clamped and
+    // the area fades into the reflection instead of smearing.
+    const float2 outside = max(float2(0.0, 0.0), max(-coord, coord - maxCoord));
+    const float outsidePx = max(outside.x, outside.y);
+    const float coverage = 1.0 - saturate(outsidePx / max(edgeFade, 1.0));
+
+    // ---- scatter ------------------------------------------------------------
+    // The gap between the pane and the content plane is what scatters: it grows
+    // with sin(delta) and with distance from the hinge, so the far edge is the
+    // hazy end and the hinge stays crisp.  The display height normalises it, so
+    // the look does not change with resolution.
     const float tilt = sin(delta);
     const float radius = blurStrength
                        * smoothstep(0.08, 1.0, height)
@@ -176,23 +184,20 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     // it never goes black, or the result stops looking like a surface.
     const float atten = clamp(1.0 - darkening * radius, attenuationFloor, 1.0);
 
-    const float2 maxCoord = resolution - 1.0;
     const float2 lowBound = float2(-radius, -radius);
     const float2 highBound = maxCoord + radius;
-
-    if (hit.x < lowBound.x || hit.y < lowBound.y ||
-        hit.x > highBound.x || hit.y > highBound.y)
+    if (coord.x < lowBound.x || coord.y < lowBound.y ||
+        coord.x > highBound.x || coord.y > highBound.y)
     {
-        // Far enough outside that even the smeared edge is meaningless.
         return float4(0.0, 0.0, 0.0, 1.0);
     }
 
-    const float2 clampedHit = clamp(hit, float2(0.0, 0.0), maxCoord);
+    const float2 clamped = clamp(coord, float2(0.0, 0.0), maxCoord);
     float3 scattered;
 
     if (radius < 0.5)
     {
-        scattered = SampleRgb(clampedHit);
+        scattered = SampleRgb(clamped);
     }
     else
     {
@@ -211,7 +216,7 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
             const float w = 1.0 - step(tapsF, fi);
             const float r = radius * sqrt((fi + 0.5) / tapsF);
             const float a = fi * GOLDEN_ANGLE + rotation;
-            const float2 tap = clamp(clampedHit + r * float2(cos(a), sin(a)),
+            const float2 tap = clamp(clamped + r * float2(cos(a), sin(a)),
                                      float2(0.0, 0.0), maxCoord);
             sum += SampleRgb(tap) * w;
             weightSum += w;
@@ -223,11 +228,9 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
 
     // Where the pane is nearly clear the picture stays sharp and the dispersion
     // is the thing that gives the glass away; where it is thick the dispersion
-    // disappears into the scatter anyway.  The crossover is deliberately far
-    // out: at a blur radius of 15 px the pane is still clear enough for a fringe
-    // to be the point, and mixing it away by then would waste it.
-    const float2 radial = normalize(clampedHit - eye + float2(1e-4, 0.0));
-    const float3 sharp = SampleDispersed(clampedHit, radial, dispersionPx * tilt);
+    // disappears into the scatter anyway.
+    const float2 radial = normalize(clamped - eye + float2(1e-4, 0.0));
+    const float3 sharp = SampleDispersed(clamped, radial, dispersionPx * tilt);
     float3 colour = lerp(sharp, scattered, saturate(radius / 32.0)) * atten;
 
     // ---- the second surface -------------------------------------------------
@@ -245,6 +248,10 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     const float3 reflectionTint =
         lerp(float3(0.16, 0.19, 0.26), float3(0.58, 0.62, 0.70), saturate(height));
     colour += (sheen + glow) * reflectionTint;
+
+    // Beyond the picture: the same reflection, so the pane's edge reads as glass
+    // rather than as a stretched border.
+    colour = lerp(reflectionTint * (0.5 + 0.5 * tilt), colour, coverage);
 
     return float4(colour, 1.0);
 }
