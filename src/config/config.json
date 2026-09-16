@@ -1,0 +1,89 @@
+{
+  "_readme": [
+    "Dragonfly fold estimator configuration.",
+    "All numbers are tunable at runtime: edit this file and restart the app.",
+    "The build copies this file next to the executable (build/<config>/config/config.json).",
+    "",
+    "Units:",
+    "  gyro*                  degrees per second",
+    "  *Progress / *Threshold progress units per second (1.0 == the whole fold)",
+    "  *Seconds / *Ms         seconds / milliseconds",
+    "  accelDeviationLimitG   g (the accelerometer natively reports g on Windows)"
+  ],
+
+  "hingeEstimator": {
+    "_hingeAxis": "auto | x | -x | y | -y | z | -z  (explicit values disable auto detection)",
+
+    "hingeAxis": "auto",
+
+    "_gyroProgressGain": "progress gained per degree of hinge travel; 1/180 = a 180 deg sweep fills the range",
+    "gyroDeadZoneDegPerSec": 2.0,
+    "gyroProgressGain": 0.0056,
+    "_rateSmoothingTauSeconds": "short-term averaging of the rates; separates noise from slow deliberate motion",
+    "rateSmoothingTauSeconds": 0.12,
+    "_medianFilterLength": "odd length; this gyro emits isolated spikes that must be rejected before averaging",
+    "medianFilterLength": 5,
+
+    "_biasLearning": [
+      "The gyro reports a small offset even when nothing moves.",
+      "Bias may ONLY be learned while every axis stays below the rate limit",
+      "for at least the delay; the per-axis peak is checked so a slow fold",
+      "cannot be absorbed into the offset."
+    ],
+    "biasLearningRateLimitDegPerSec": 2.5,
+    "biasLearningDelaySeconds": 1.5,
+    "biasLearningTauSeconds": 3.0,
+
+    "_stateMachine": "thresholds are progress per second (progress gained per second), not deg/s",
+    "motionStartThreshold": 0.08,
+    "stableThreshold": 0.02,
+    "settleTimeMs": 300,
+
+    "state1MaxProgress": 0.90,
+    "state2MinProgress": 0.82,
+    "state2MaxProgress": 1.00,
+    "state3ForcesOpen": true,
+    "state1DefaultProgress": 0.75,
+    "state2DefaultProgress": 0.92,
+
+    "signProbeWindowSeconds": 1.0,
+    "signProbeMinRateDegPerSec": 5.0,
+
+    "_idleFreeze": [
+      "This gyro's X axis has a ~19 deg/s zero-mean noise floor even at rest.",
+      "Below the rate floor for longer than the delay, the smoothed rates are",
+      "bled to zero so the residue cannot random-walk the progress."
+    ],
+    "idleRateFloorDegPerSec": 8.0,
+    "idleFreezeDelaySeconds": 0.8,
+    "idleFreezeTauSeconds": 0.25,
+
+    "orientationCorrectionGain": 0.02,
+    "accelDeviationLimitG": 0.25,
+    "axisShareFloor": 0.45,
+    "motionPenalty": 0.90,
+    "_motionConfirmRateDegPerSec": "spread rotation only counts as whole-device motion above this rate",
+    "motionConfirmRateDegPerSec": 15.0,
+
+    "axisWindowSeconds": 1.5,
+    "axisSwitchRatio": 1.6,
+    "_axisEnergyFloor": "minimum smoothed energy before an axis may be adopted",
+    "axisEnergyFloor": 10.0,
+    "_axisEnergyMinRateDegPerSec": "only rates above this feed the axis statistics (must match idleRateFloorDegPerSec)",
+    "axisEnergyMinRateDegPerSec": 8.0,
+
+    "manualStepPerPress": 0.05
+  },
+
+  "animation": {
+    "smoothingTauSeconds": 0.05,
+    "_snapThresholdProgress": "jumps larger than this snap instead of sweeping",
+    "snapThresholdProgress": 0.25
+  },
+
+  "debugWindow": {
+    "enabled": true,
+    "width": 960,
+    "height": 640
+  }
+}

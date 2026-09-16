@@ -1,0 +1,58 @@
+# ---------------------------------------------------------------------------
+#  Build output
+# ---------------------------------------------------------------------------
+src/build/
+src/build-*/
+build/
+out/
+bin/
+obj/
+
+# ---------------------------------------------------------------------------
+#  Runtime output (CSV logs, startup reports)
+# ---------------------------------------------------------------------------
+**/logs/
+startup-report.txt
+*.csv
+
+# ---------------------------------------------------------------------------
+#  Third-party reference projects
+#
+#  These four directories are independent git clones.  They carry their own
+#  history and their own licenses (see src/ATTRIBUTION.md), they are used as
+#  read-only reference material, and they are deliberately NOT tracked here --
+#  an outer repository would otherwise treat them as embedded repositories.
+# ---------------------------------------------------------------------------
+/Duo-animation/
+/duo-open/
+/iphone-duo/
+/iphone-duo-animation/
+
+# ---------------------------------------------------------------------------
+#  Visual Studio / MSVC
+# ---------------------------------------------------------------------------
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.idb
+*.tlog
+*.iobj
+*.ipdb
+
+# ---------------------------------------------------------------------------
+#  Editors / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+Thumbs.db
+desktop.ini
