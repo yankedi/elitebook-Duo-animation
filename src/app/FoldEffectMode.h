@@ -46,9 +46,19 @@ struct FoldEffectOptions {
     // ---------------------------------------------------------------------
     float activationAngleDeg = 110.0f;
 
-    // Largest angle delta fed to the shader.  lid-plane clamps its delta to
-    // roughly 1.25 rad (72 degrees).
-    float maxDeltaDegrees = 60.0f;
+    // Largest angle delta fed to the shader.
+    //
+    // The reference clamps at about 1.25 rad (72 deg), which leaves the whole
+    // closed half of a laptop's travel pinned at maximum blur: on a laptop the
+    // lid goes all the way to 0 degrees, so 60 or 72 degrees of clamp means
+    // every hinge angle below ~50 degrees renders identically.  Once the effect
+    // starts early enough to be seen in that band, it reads as a frozen image.
+    //
+    // 90 degrees is where sin() peaks, so over the range that is actually
+    // visible (hinge 110 down to about 25 degrees) the blur keeps responding to
+    // the lid, and the remaining plateau lands below 20 degrees of hinge, where
+    // the panel faces the keyboard.
+    float maxDeltaDegrees = 90.0f;
 
     // Blur radius per 1000 px of display height, at the largest delta.  This is
     // lid-plane's constant; the shader turns it into pixels using the actual

@@ -284,8 +284,13 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // The duplication being dead is the one real failure: the texture then holds
     // something that can no longer be trusted, and the caller must not draw it.
     auto grabDesktop = [&]() -> bool {
+        // A frame is only worth waiting for when there is nothing in hand; if
+        // there is, one non-blocking look is enough, and a timeout proves the
+        // held frame still matches.  Waiting here would stall the render loop
+        // right at the start of a fold, which is the worst possible moment.
+        const uint32_t timeoutMs = hasContent ? 0u : 120u;
         for (int attempt = 0; attempt < 2; ++attempt) {
-            if (capture.AcquireFrame(100)) {
+            if (capture.AcquireFrame(timeoutMs)) {
                 capture.CopyFrameTo(device.Context(), content.Get());
                 capture.ReleaseFrame();
                 ++captureCount;
@@ -301,11 +306,11 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
 
     // A small event log, so a run can be read back afterwards: the whole point
     // of the safety gate is timing, and the console status line is overwritten
-    // every 0.25 s.
+    // every 0.25 s.  Timestamps come along because durations are what matters.
     auto note = [&](const char* what, double hingeDeg) {
-        char buffer[160];
-        std::snprintf(buffer, sizeof(buffer), "\n  [env] %-22s hinge %6.1f\n", what,
-                      hingeDeg);
+        char buffer[200];
+        std::snprintf(buffer, sizeof(buffer), "\n  [env] %-22s t %7.2f  hinge %6.1f\n",
+                      what, SteadySeconds(), hingeDeg);
         terminal.Write(buffer);
     };
 
@@ -410,11 +415,12 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                                    (capture.Healthy() ? 8u : 0u);
         if (inputMask != lastInputMask) {
             lastInputMask = inputMask;
-            char buffer[220];
+            char buffer[240];
             std::snprintf(buffer, sizeof(buffer),
-                          "\n  [in ] hinge %6.1f  sensorAge %6.2f s  lidSwitch %2d  "
-                          "display %-3s  capture %-4s\n",
-                          hingeAngle, sensorAge, lidSwitch, displayOn ? "on" : "OFF",
+                          "\n  [in ] t %7.2f  hinge %6.1f  sensorAge %6.2f s  "
+                          "lidSwitch %2d  display %-3s  capture %-4s\n",
+                          SteadySeconds(), hingeAngle, sensorAge, lidSwitch,
+                          displayOn ? "on" : "OFF",
                           capture.Healthy() ? "ok" : "LOST");
             terminal.Write(buffer);
         }
@@ -463,15 +469,18 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
 
         // ---- capture recovery -----------------------------------------------
         // A duplication that came back DXGI_ERROR_ACCESS_LOST is dead and can
-        // only be replaced; retry at most once a second so a panel that is still
-        // off cannot be hammered.
+        // only be replaced -- and it has to be replaced the moment the lid
+        // starts to open, not on a slow retry timer.  While it is missing the
+        // effect cannot be shown at all, so that gap is exactly the part of the
+        // motion the user sees as "the effect never came back".  Closing the lid
+        // is what kills it, so retries are slower while the lid is shut, to
+        // avoid hammering a panel that is still off.
+        const double recoveryInterval = lidClosedLatch ? 0.5 : 0.15;
         if (!capture.Healthy() &&
-            sample.steadySeconds - lastRecoverySeconds >= 1.0) {
+            sample.steadySeconds - lastRecoverySeconds >= recoveryInterval) {
             lastRecoverySeconds = sample.steadySeconds;
             if (capture.TryRestart(device.Device())) {
-                terminal.Write("\ncapture restarted at " +
-                               std::to_string(capture.Width()) + "x" +
-                               std::to_string(capture.Height()) + "\n");
+                note("capture restarted", hingeAngle);
             }
         }
 
@@ -499,8 +508,15 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
 
         // Past flat the pose cannot be resolved with a single IMU, so the effect
         // switches itself off and the desktop comes back untouched.
-        const bool effectWanted = ready && !pastFlat && angleDelta > 0.05 &&
-                                  tracker.Valid();
+        //
+        // The threshold is asymmetric on purpose: right at the activation angle
+        // the estimate wanders by about a degree, and a single threshold makes
+        // the overlay pop on and off several times while the lid settles.  Going
+        // on takes a clear delta, going off takes the lid actually being past
+        // the activation angle.
+        const double deltaThreshold = lastEffectWanted ? -0.3 : 0.6;
+        const bool effectWanted = ready && !pastFlat &&
+                                  angleDelta > deltaThreshold && tracker.Valid();
 
         // ---- snapshot policy, the single most important part of this loop ----
         //
@@ -541,14 +557,15 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             }
         } else if (!lastEffectWanted) {
             // Hide first: a capture taken while the overlay is up would contain
-            // the overlay itself.
-            overlay.Show(false);
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            // the overlay itself.  Only wait for the hide to reach the compositor
+            // if the overlay was actually on screen.
+            if (overlay.IsShown()) {
+                overlay.Show(false);
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
             hasContent = grabDesktop();
             lastEffectWanted = true;
-            if (effectWanted) {
-                note("effect on", hingeAngle);
-            }
+            note("effect on", hingeAngle);
         } else if (!hasContent) {
             // An earlier attempt came back empty; keep asking while the effect
             // wants to be visible.
