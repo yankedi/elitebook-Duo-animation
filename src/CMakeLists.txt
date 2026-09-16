@@ -113,11 +113,15 @@ message(STATUS "C++/WinRT headers .... ${_cppwinrt_include}")
 add_executable(DragonflySensorDiag
     app/main.cpp
     app/ConsoleUi.cpp
+    app/FoldEffectMode.cpp
     animation/FoldAnimationController.cpp
+    capture/DesktopCapture.cpp
     config/ConfigLoader.cpp
     graphics/D3DDevice.cpp
     graphics/DebugFoldWindow.cpp
+    graphics/FoldRenderer.cpp
     graphics/OrientationDemoWindow.cpp
+    graphics/OverlayWindow.cpp
     hinge/HingeEstimator.cpp
     orientation/OrientationTracker.cpp
     sensors/SensorManager.cpp

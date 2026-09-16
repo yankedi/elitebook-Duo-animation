@@ -18,15 +18,18 @@ startup-report.txt
 # ---------------------------------------------------------------------------
 #  Third-party reference projects
 #
-#  These four directories are independent git clones.  They carry their own
+#  These directories are independent git clones.  They carry their own
 #  history and their own licenses (see src/ATTRIBUTION.md), they are used as
 #  read-only reference material, and they are deliberately NOT tracked here --
 #  an outer repository would otherwise treat them as embedded repositories.
+#
+#  lid-plane is explicitly excluded from this project's reference set.
 # ---------------------------------------------------------------------------
 /Duo-animation/
 /duo-open/
 /iphone-duo/
 /iphone-duo-animation/
+/lid-plane/
 
 # ---------------------------------------------------------------------------
 #  Visual Studio / MSVC

@@ -333,7 +333,93 @@ X 轴是**零均值**噪声（不是偏置），因此中值滤波 + 静止冻�
 
 ---
 
-## 10. 下一步：Fold Shader 如何接入
+## 10. Fold Effect（最终目标，已实现）
+
+```powershell
+.\build\Release\DragonflySensorDiag.exe --fold-effect
+```
+
+屏幕开合时**桌面本身**跟着产生折叠变形，停止运动后恢复原样。
+
+### 数据流
+
+```
+OrientationSensor → hingeAngle → foldProgress
+        │
+        ├─ progress < 1 → 抓屏 → 折叠 shader → overlay 显示
+        └─ progress = 1 → 隐藏 overlay，完全停止渲染
+```
+
+### 组成
+
+| 模块 | 职责 |
+|---|---|
+| `capture/DesktopCapture` | DXGI Desktop Duplication 抓取主显示器 |
+| `graphics/FoldRenderer` | HLSL 折叠 shader（全屏三角形，运行时编译） |
+| `graphics/OverlayWindow` | 全屏、置顶、鼠标穿透的覆盖窗口 |
+| `app/FoldEffectMode` | 主循环与 overlay 生命周期 |
+
+### Shader 模型
+
+移植自 Duo-animation / duo-open 共用的 **ray-plane** 模型：
+
+```
+固定的内容平面（捕获的桌面）
+        ↑
+        │   逐像素：眼睛 → 玻璃点 → 延伸到平面求交
+   [玻璃]│   模糊半径 ∝ 玻璃到平面的间隙
+  ╱     │   变暗 ∝ 模糊半径（散射吸收）
+ ╱      │   卷积核完全错过内容 → 黑色
+────────┴──────── 铰链线（面板底边）
+```
+
+针对本机的改动：铰链是**水平线**（笔记本盖），因此工作坐标做了转置（duo-open 的 `axisSwap` 思路）；没有 pane side / hinge position 需要解析，铰链恒为面板底边。
+
+### 角度映射
+
+| hingeAngle | tilt | 效果 |
+|---|---|---|
+| 180° | 0° | 旁路 shader，桌面原样通过 |
+| 120° | 41° | 轻微透视压缩 + 边缘模糊 |
+| 90° | 62° | 满量程（参考 duo-open 的饱和处理） |
+| < 90° | 62° | 保持满量程直到合盖 |
+
+180° 时**直接旁路**，所以效果会干净地消失，不会残留一层淡模糊。
+
+### 生命周期
+
+- `progress < 1` 时显示 overlay 并渲染；`progress = 1` 时**隐藏并完全停止渲染**（空闲 CPU 接近 0）
+- overlay 为 `WS_EX_TRANSPARENT`，鼠标可穿透，不影响正常操作
+- 越过摊平（Lid Mode 3+）即关闭效果
+
+### 可调参数
+
+来自 Duo-animation 的 `FoldParameters`（在 `FoldEffectParameters` 中）：
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `eyeDistanceMm` | 450 | 视点到平面距离，按显示器 DPI 换算（本机 120 dpi → 2126 px） |
+| `blurSpread` | 0.12 | 每像素间隙产生的模糊半径 |
+| `darkening` | 0.015 | 每像素模糊半径造成的亮度衰减 |
+| `maxTiltDegrees` | 62 | 交给 shader 的最大倾斜角 |
+
+### 实测
+
+```
+display 1920x1080, 120 dpi -> eye distance 2126 px, blur 0.120, darken 0.015
+FOLD   hinge 120.7   progress 0.671   tilt 40.9   lid 1   overlay ON
+```
+
+---
+
+## 11. 下一步
+
+1. **性能**：模糊循环固定 32 次采样，可按半径自适应减少
+2. **过渡**：给 tilt 加低通，让快速开合更柔和
+3. **多显示器**：目前只抓主输出（`EnumOutputs(0)`）
+4. **打包**：加 LICENSE、CI 构建
+
+## 12. 附：渲染器接口设计（原始记录）
 
 渲染器只需要 `FoldAnimationState`：
 

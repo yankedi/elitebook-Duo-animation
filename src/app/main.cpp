@@ -15,6 +15,7 @@
 //  FoldAnimationState.
 // ---------------------------------------------------------------------------
 #include "ConsoleUi.h"
+#include "FoldEffectMode.h"
 
 #include "../animation/FoldAnimationController.h"
 #include "../config/ConfigLoader.h"
@@ -70,6 +71,7 @@ struct Options {
     bool writeConfig = false;
     bool selfTest = false;
     bool orientationDemo = false;
+    bool foldEffect = false;
     bool help = false;
 };
 
@@ -106,6 +108,7 @@ const wchar_t* kHelp =
     L"  --write-config   write the default config.json next to the executable\n"
     L"  --selftest       run the estimator against a synthetic gyro sequence\n"
     L"  --orientation-demo  native counterpart of testyourdevices.com/gyroscope-test/\n"
+    L"  --fold-effect    show the live desktop folding as the lid moves\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -188,6 +191,8 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             options.selfTest = true;
         } else if (argument == L"--orientation-demo") {
             options.orientationDemo = true;
+        } else if (argument == L"--fold-effect") {
+            options.foldEffect = true;
         } else {
             return false;
         }
@@ -579,6 +584,10 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
 } // namespace
 
 int wmain(int argc, wchar_t** argv) {
+    // Physical pixels everywhere: the overlay window and the desktop duplication
+    // API both work in real screen coordinates rather than DPI-scaled ones.
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
     Options options;
     if (!ParseArguments(argc, argv, options)) {
         std::fputs("Invalid arguments. Use --help.\n", stderr);
@@ -659,7 +668,7 @@ int wmain(int argc, wchar_t** argv) {
     // "Dragonfly Fold Debug" window sitting behind the demo.
     dragonfly::DebugFoldWindow debugWindow;
     bool windowOpen = false;
-    if (config.debugWindowEnabled && !options.orientationDemo) {
+    if (config.debugWindowEnabled && !options.orientationDemo && !options.foldEffect) {
         windowOpen = debugWindow.Create(L"Dragonfly Fold Debug",
                                         config.debugWindowWidth, config.debugWindowHeight);
         if (!windowOpen) {
@@ -674,7 +683,7 @@ int wmain(int argc, wchar_t** argv) {
     dragonfly::SensorLogger logger;
     std::string logPath;
     std::filesystem::path logDirectory;
-    if (options.logging && !options.orientationDemo) {
+    if (options.logging && !options.orientationDemo && !options.foldEffect) {
         logDirectory = executableDirectory / options.logDirectory;
         std::error_code directoryError;
         std::filesystem::create_directories(logDirectory, directoryError);
@@ -706,6 +715,19 @@ int wmain(int argc, wchar_t** argv) {
 
     if (options.orientationDemo) {
         const int result = RunOrientationDemo(options, sensors, customSensors, terminal);
+        sensors.Stop();
+        customSensors.Stop();
+        logger.Close();
+        debugWindow.Destroy();
+        winrt::uninit_apartment();
+        return result;
+    }
+
+    if (options.foldEffect) {
+        dragonfly::FoldEffectOptions foldOptions;
+        foldOptions.seconds = options.seconds;
+        const int result =
+            dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();
         customSensors.Stop();
         logger.Close();
