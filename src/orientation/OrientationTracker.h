@@ -86,6 +86,22 @@ public:
     // i.e. where the device's Z axis points).  Continuous everywhere.
     void Normal(double& x, double& y, double& z) const;
 
+    // Angle between the device's Z axis (the screen normal) and the world's up
+    // direction, in degrees:
+    //      0 = screen lying flat, facing up   (lid closed)
+    //     90 = screen upright
+    //    180 = screen folded all the way back
+    //
+    // Only the Z component of the normal is involved, so this quantity is
+    // INVARIANT under yaw: turning the whole machine on the desk rotates the
+    // normal inside the horizontal plane, which leaves its Z component -- and
+    // therefore this angle -- untouched.  That is what stops a whole-device
+    // turn from leaking into the apparent lid angle.
+    //
+    // It is also absolute, not relative to a captured pose, so the model starts
+    // out matching the real lid position instead of holding an arbitrary offset.
+    double TiltDegrees() const;
+
     // ---- reference capture -------------------------------------------------
     // Records the current attitude as the reference.  Everything after that is
     // expressed *relative* to it, which is what lets a fixed base and a moving

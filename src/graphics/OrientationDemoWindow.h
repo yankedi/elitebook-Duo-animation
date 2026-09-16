@@ -51,6 +51,12 @@ struct OrientationVisual {
     double relativeNormalX = 0.0;  // screen normal in the reference frame
     double relativeNormalY = 0.0;
     double relativeNormalZ = 1.0;
+    double normalX = 0.0;          // screen normal in world coordinates
+    double normalY = 0.0;
+    double normalZ = 1.0;
+    // Angle between the screen normal and world up; 0 = flat/closed,
+    // 90 = upright, 180 = folded all the way back.  Yaw-invariant.
+    double tiltDeg = 90.0;
     OrientationVisualMode mode = OrientationVisualMode::Stable;
     bool transposed = false;
     bool valid = false;

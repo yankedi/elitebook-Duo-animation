@@ -286,6 +286,18 @@ void OrientationTracker::Normal(double& x, double& y, double& z) const {
     z = m_smoothedRotation.m[2 * 3 + 2];
 }
 
+double OrientationTracker::TiltDegrees() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_valid) {
+        return 0.0;
+    }
+
+    // World Z component of the screen normal.  Everything else cancels out,
+    // which is exactly why this measure ignores yaw.
+    const double normalZ = Clamp(m_smoothedRotation.m[2 * 3 + 2], -1.0, 1.0);
+    return std::acos(normalZ) * kRadToDeg;
+}
+
 void OrientationTracker::CaptureReference() {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_valid) {

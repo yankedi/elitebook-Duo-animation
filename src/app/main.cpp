@@ -378,19 +378,21 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
     terminal.Write(
         "\nOrientation demo - the model follows the fused Windows OrientationSensor.\n"
         "\n"
-        "The analysed site (testyourdevices.com/gyroscope-test/) consumes the browser's\n"
-        "already-fused alpha/beta/gamma and applies rotateX(-beta) rotateY(gamma).  That\n"
-        "ZXY decomposition has a gimbal lock exactly where an upright laptop screen sits,\n"
-        "which is what makes it flip.  Three modes are provided:\n"
+        "The scene is driven by TILT: the angle between the screen normal and the\n"
+        "world's up direction, taken from the world-vertical component of the screen\n"
+        "normal.  It is absolute (0 = closed, 90 = upright, 180 = folded back) and it\n"
+        "ignores yaw entirely, so rotating the whole machine on the desk does not move\n"
+        "the panel at all.\n"
         "\n"
-        "  STABLE   screen normal mapped through a shortest-arc rotation (no gimbal lock)\n"
-        "  WEBSITE  the site's formula verbatim, for 1:1 comparison\n"
+        "Tilting the whole machine (pitch / roll) still shifts it: a single IMU cannot\n"
+        "tell the machine's own motion apart from lid motion.  That is a physical\n"
+        "limit, not a bug.\n"
+        "\n"
+        "  STABLE   hinge model driven by tilt (default)\n"
+        "  WEBSITE  the site's rotateX(-beta) rotateY(gamma) formula, for comparison\n"
         "  FULL     the complete attitude matrix, so yaw moves the model too\n"
         "\n"
-        "Keys: [F] cycle mode   [V] cycle normal convention   [T] transpose   "
-        "[R] re-capture reference   [Q] quit\n"
-        "Watch the title bar: it flags [GIMBAL] and [FOLDED] when the decomposition is\n"
-        "at or across its singularity.\n\n");
+        "Keys: [F] cycle mode   [T] transpose   [R] reset smoothing   [Q] quit\n\n");
 
     using VisualMode = dragonfly::OrientationVisualMode;
     VisualMode mode = VisualMode::Stable;   // stable mapping by default
@@ -402,9 +404,6 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
     const std::chrono::duration<double> period(1.0 / 60.0);
 
     bool referenceCaptured = false;
-    int normalVariant = 0;   // cycles the normal-extraction convention
-
-    const char* normalVariantNames[4] = {"column", "row", "column -Y", "column -Z"};
 
     auto modeName = [](VisualMode value) -> const char* {
         switch (value) {
@@ -425,10 +424,6 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         case 't':
         case 'T':
             tracker.SetTranspose(!tracker.Transposed());
-            break;
-        case 'v':
-        case 'V':
-            normalVariant = (normalVariant + 1) % 4;
             break;
         case 'r':
         case 'R':
@@ -475,8 +470,8 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         if (!referenceCaptured && tracker.Valid()) {
             tracker.CaptureReference();
             referenceCaptured = true;
-            terminal.Write("\nReference attitude captured (screen upright, base level).\n"
-                           "Press R to re-capture it at any time.\n");
+            terminal.Write("\nReference attitude captured (only the FULL mode uses it;\n"
+                           "STABLE is driven by the absolute tilt).\n");
         }
 
         const dragonfly::OrientationAngles angles = tracker.Angles();
@@ -488,7 +483,9 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
         visual.rotation = tracker.Rotation();
         visual.relativeRotation = tracker.RelativeRotation();
         tracker.RelativeNormal(visual.relativeNormalX, visual.relativeNormalY,
-                               visual.relativeNormalZ, normalVariant);
+                               visual.relativeNormalZ);
+        tracker.Normal(visual.normalX, visual.normalY, visual.normalZ);
+        visual.tiltDeg = tracker.TiltDegrees();
         visual.mode = mode;
         visual.transposed = tracker.Transposed();
         visual.valid = tracker.Valid();
@@ -506,14 +503,14 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
             char buffer[400];
             const int written = std::snprintf(
                 buffer, sizeof(buffer),
-                "%-7s  alpha %7.1f  beta %7.1f  gamma %7.1f   | rel-normal[%s] "
-                "%6.3f %6.3f %6.3f   |%s%s%s",
-                modeName(mode), angles.alphaDeg, angles.betaDeg, angles.gammaDeg,
-                normalVariantNames[normalVariant],
-                visual.relativeNormalX, visual.relativeNormalY, visual.relativeNormalZ,
-                angles.gimbalLock ? " GIMBAL" : "",
-                angles.foldedBeta ? " FOLDED" : "",
-                visual.valid ? "" : " (no orientation data)");
+                "%-7s  tilt %6.1f deg  | normal %6.3f %6.3f %6.3f  | "
+                "a %6.1f  b %6.1f  g %7.1f%s%s%s",
+                modeName(mode), visual.tiltDeg,
+                visual.normalX, visual.normalY, visual.normalZ,
+                angles.alphaDeg, angles.betaDeg, angles.gammaDeg,
+                angles.gimbalLock ? "  GIMBAL" : "",
+                angles.foldedBeta ? "  FOLDED" : "",
+                visual.valid ? "" : "  (no orientation data)");
 
             std::string line =
                 "\r" + std::string(buffer, written < 0 ? 0 : static_cast<size_t>(written));
@@ -522,6 +519,10 @@ int RunOrientationDemo(const Options& options, dragonfly::SensorManager& sensors
             }
             lastLineLength = line;
             terminal.Write(line);
+        }
+
+        if (options.seconds > 0.0 && sample.steadySeconds >= options.seconds) {
+            break;
         }
 
         nextTick += std::chrono::duration_cast<std::chrono::steady_clock::duration>(period);

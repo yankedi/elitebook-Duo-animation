@@ -417,15 +417,16 @@ void OrientationDemoWindow::RenderScreenRotation(const OrientationVisual& visual
     }
 
     case OrientationVisualMode::Stable: {
-        // A laptop lid only ever turns about its hinge, so the screen is
-        // rotated about the hinge axis (X) by the pitch of the device's Z axis
-        // relative to the reference attitude.
+        // Model the lid as a hinge: the panel is upright when the tilt is 90
+        // degrees and lies flat on the base when it is 0, so the model turns by
+        // (90 - tilt) about the hinge axis.
         //
-        // Deliberately NOT a general shortest-arc rotation: that would also
-        // pick up sideways tilt and make the lid swing diagonally, which reads
-        // as a book opening from a corner rather than a lid turning on a hinge.
-        const double pitch = std::atan2(visual.relativeNormalY, visual.relativeNormalZ);
-        model = XMMatrixRotationX(static_cast<float>(-pitch));
+        // TiltDegrees() comes from the world-vertical component of the screen
+        // normal, so a whole-device turn (yaw) leaves it untouched -- the panel
+        // no longer swings when the machine is simply rotated on the desk.
+        const double modelAngleDeg = 90.0 - visual.tiltDeg;
+        model = XMMatrixRotationX(
+            XMConvertToRadians(static_cast<float>(-modelAngleDeg)));
         break;
     }
 
