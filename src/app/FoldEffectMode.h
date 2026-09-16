@@ -68,9 +68,22 @@ struct FoldEffectOptions {
     //  desktop, with the dispersion and the edge rim doing the work; "plain" is
     //  the bare ray-plane model with every glass cue switched off, kept so the
     //  two can be compared by eye.
+    //
+    //  Clear is the default while the material is being judged in motion: it is
+    //  the one that does not hide behind blur, so what the lid does to the
+    //  picture is visible the whole way down.
     // ---------------------------------------------------------------------
     enum class GlassPreset { Frosted, Clear, Plain };
-    GlassPreset glassPreset = GlassPreset::Frosted;
+    GlassPreset glassPreset = GlassPreset::Clear;
+
+    // ---- material overrides, applied after the preset ---------------------
+    // Negative means "keep the preset".  Judging a material is a loop of
+    // "change one number, look again", and a rebuild inside that loop wastes a
+    // minute every time.
+    float blurOverride = -1.0f;
+    float dispersionOverride = -1.0f;
+    float sheenOverride = -1.0f;
+    float edgeOverride = -1.0f;
 
     // Blur radius per 1000 px of display height, at the largest delta.  This is
     // lid-plane's constant; the shader turns it into pixels using the actual

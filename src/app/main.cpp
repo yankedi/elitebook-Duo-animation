@@ -76,10 +76,27 @@ struct Options {
     bool dumpFrames = false;
     bool allowDisplayOff = false;
     bool keepSystemAwake = false;
-    std::wstring glass = L"frost";
+    std::wstring glass = L"clear";
     double glassPreviewDegrees = 0.0;
+    double blurOverride = -1.0;
+    double dispersionOverride = -1.0;
+    double sheenOverride = -1.0;
+    double edgeOverride = -1.0;
     bool help = false;
 };
+
+// Parses the value of "--name=value"; false when the number is missing.
+bool ParseNumberArgument(const std::wstring& argument, size_t prefixLength,
+                         double& value) {
+    const std::wstring text = argument.substr(prefixLength);
+    wchar_t* end = nullptr;
+    const double parsed = std::wcstod(text.c_str(), &end);
+    if (end == text.c_str()) {
+        return false;
+    }
+    value = parsed;
+    return true;
+}
 
 std::string ToUtf8(const std::wstring& text) {
     if (text.empty()) {
@@ -117,8 +134,9 @@ const wchar_t* kHelp =
     L"  --fold-effect    show the live desktop folding as the lid moves\n"
     L"  --allow-display-off  let the display sleep while --fold-effect runs\n"
     L"  --keep-system-awake  block Modern Standby while the lid is shut\n"
-    L"  --glass=MODE     frost (default) | clear | plain -- the pane's material\n"
+    L"  --glass=MODE     frost | clear (default) | plain -- the pane's material\n"
     L"  --glass-preview=DEG  hold the effect at a fixed angle to judge the look\n"
+    L"  --blur=N --dispersion=N --sheen=N --edge=N   material overrides\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -226,6 +244,22 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             } else if (which == L"plain") {
                 options.glass = L"plain";
             } else {
+                return false;
+            }
+        } else if (argument.rfind(L"--blur=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 7, options.blurOverride)) {
+                return false;
+            }
+        } else if (argument.rfind(L"--dispersion=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 13, options.dispersionOverride)) {
+                return false;
+            }
+        } else if (argument.rfind(L"--sheen=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 8, options.sheenOverride)) {
+                return false;
+            }
+        } else if (argument.rfind(L"--edge=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 7, options.edgeOverride)) {
                 return false;
             }
         } else {
@@ -850,8 +884,14 @@ int wmain(int argc, wchar_t** argv) {
             foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Clear;
         } else if (options.glass == L"plain") {
             foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Plain;
+        } else {
+            foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Frosted;
         }
         foldOptions.previewDeltaDegrees = options.glassPreviewDegrees;
+        foldOptions.blurOverride = static_cast<float>(options.blurOverride);
+        foldOptions.dispersionOverride = static_cast<float>(options.dispersionOverride);
+        foldOptions.sheenOverride = static_cast<float>(options.sheenOverride);
+        foldOptions.edgeOverride = static_cast<float>(options.edgeOverride);
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();

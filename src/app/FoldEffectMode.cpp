@@ -159,6 +159,20 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         break;
     }
 
+    // ---- material overrides, applied after the preset ----------------------
+    if (options.blurOverride >= 0.0f) {
+        parameters.blurStrength = options.blurOverride;
+    }
+    if (options.dispersionOverride >= 0.0f) {
+        parameters.dispersionPx = options.dispersionOverride;
+    }
+    if (options.sheenOverride >= 0.0f) {
+        parameters.sheenStrength = options.sheenOverride;
+    }
+    if (options.edgeOverride >= 0.0f) {
+        parameters.edgeGlow = options.edgeOverride;
+    }
+
     const UINT dpi = GetDpiForWindow(overlay.Handle());
 
     FoldRenderer renderer;
