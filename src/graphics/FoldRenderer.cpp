@@ -38,6 +38,11 @@ struct FoldConstants {
     float edgeFadePx;
     float screenDepthPx;
     float pictureScale;
+    float windowWidth;
+    float windowHeight;
+    float originX;
+
+    float originY;
     float padding[3];
 };
 
@@ -246,6 +251,10 @@ void FoldRenderer::Render(ID3D11DeviceContext* context,
     constants.edgeFadePx = parameters.edgeFadePx;
     constants.screenDepthPx = parameters.screenDepthPx;
     constants.pictureScale = parameters.pictureScale;
+    constants.windowWidth = parameters.windowWidth;
+    constants.windowHeight = parameters.windowHeight;
+    constants.originX = parameters.originX;
+    constants.originY = parameters.originY;
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (SUCCEEDED(context->Map(m_constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,

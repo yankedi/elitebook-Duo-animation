@@ -43,8 +43,23 @@ bool OverlayWindow::Create(const std::wstring& title, bool layered) {
 
     // Physical pixels: the process is per-monitor DPI aware (set in main), so
     // these match what Desktop Duplication reports.
-    m_width = static_cast<uint32_t>(GetSystemMetrics(SM_CXSCREEN));
-    m_height = static_cast<uint32_t>(GetSystemMetrics(SM_CYSCREEN));
+    //
+    // The pane covers the *work area*, not the whole screen: the taskbar is
+    // topmost as well and sits above the pane, so covering its strip would make
+    // DWM re-blur the taskbar's acrylic backdrop on every frame this window
+    // updates -- which is exactly the flicker that was reported.  Leaving the
+    // taskbar out keeps it crisp and keeps its backdrop cached.
+    RECT workArea{};
+    if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE) {
+        workArea.left = 0;
+        workArea.top = 0;
+        workArea.right = GetSystemMetrics(SM_CXSCREEN);
+        workArea.bottom = GetSystemMetrics(SM_CYSCREEN);
+    }
+    m_originX = workArea.left;
+    m_originY = workArea.top;
+    m_width = static_cast<uint32_t>(workArea.right - workArea.left);
+    m_height = static_cast<uint32_t>(workArea.bottom - workArea.top);
     if (m_width == 0 || m_height == 0) {
         return false;
     }
@@ -65,7 +80,8 @@ bool OverlayWindow::Create(const std::wstring& title, bool layered) {
         // the two agree.
         extendedStyle,
         kWindowClass, title.c_str(), WS_POPUP,
-        0, 0, static_cast<int>(m_width), static_cast<int>(m_height),
+        static_cast<int>(m_originX), static_cast<int>(m_originY),
+        static_cast<int>(m_width), static_cast<int>(m_height),
         nullptr, nullptr, instance, this);
 
     if (!m_hwnd) {
@@ -117,8 +133,8 @@ bool OverlayWindow::Resize(uint32_t width, uint32_t height) {
 
     m_width = width;
     m_height = height;
-    SetWindowPos(m_hwnd, HWND_TOPMOST, 0, 0, static_cast<int>(width),
-                 static_cast<int>(height), SWP_NOACTIVATE | SWP_NOMOVE);
+    SetWindowPos(m_hwnd, HWND_TOPMOST, m_originX, m_originY, static_cast<int>(width),
+                 static_cast<int>(height), SWP_NOACTIVATE);
     return true;
 }
 

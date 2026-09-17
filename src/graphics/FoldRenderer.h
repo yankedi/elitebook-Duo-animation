@@ -95,6 +95,14 @@ struct FoldEffectParameters {
     // does.  The caller sets it as a fraction of the eye distance.
     float pictureScale = 0.85f;
 
+    // The pane's size and its top-left corner on the desktop.  The pane covers
+    // the work area, so the desktop's own size (which `resolution` holds) is
+    // larger than the pane, and the shader needs to know where the pane sits.
+    float windowWidth = 1920.0f;
+    float windowHeight = 1080.0f;
+    float originX = 0.0f;
+    float originY = 0.0f;
+
     // How far in front of the pane the picture's plane hangs, in pixels.  See
     // FoldEffectParameters::screenDepthPx; the caller sets it as a fraction of
     // the eye distance.
