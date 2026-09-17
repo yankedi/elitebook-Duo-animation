@@ -95,15 +95,23 @@ struct FoldEffectOptions {
     float eyeDistanceHeights = 2.7f;
     float eyeHeightHeights = 0.55f;
 
-    // How far the picture hangs behind the pane's plane, as a fraction of the
-    // eye distance.  Zero puts it back on the plane, where the picture swells
-    // as the lid closes; larger values hold it stiller and show more of the
-    // void around it.  --depth=N overrides.
-    float screenDepthRatio = 0.45f;
+    // How far in front of the pane the picture's plane hangs, as a fraction of
+    // the eye distance.
+    //
+    // 0 (the default) puts the picture on the pane's own anchored plane: it fills
+    // the glass exactly when the lid starts to move, so nothing pops, and the
+    // intersection gives the real perspective of a screen standing in space.
+    // Because that plane passes through the hinge, closing the lid slides the
+    // picture out from under the pane's top edge and crops it -- the accepted
+    // price of the picture being fixed in space while the glass moves.
+    //
+    // Larger values hang the picture in front of the glass instead, so the pane
+    // sweeps over it and the crop becomes a margin of void.  --depth=N overrides.
+    float screenDepthRatio = 0.0f;
 
     // The picture's size relative to the glass.  1 fills the pane at the anchor;
     // less hangs it in space with a margin around it.  --picture=N overrides.
-    float pictureScale = 0.85f;
+    float pictureScale = 1.0f;
 
     // Whether the pane window is layered.  Layering is what makes the window
     // click-through; --no-layered-overlay turns it off to test whether a layered

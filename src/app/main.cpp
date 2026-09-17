@@ -84,8 +84,8 @@ struct Options {
     double edgeOverride = -1.0;
     double parallaxOverride = -1.0;
     double eyeDistanceMm = 0.0;
-    double screenDepthRatio = 0.45;
-    double pictureScale = 0.85;
+    double screenDepthRatio = 0.0;
+    double pictureScale = 1.0;
     bool layeredOverlay = true;
     bool help = false;
 };
