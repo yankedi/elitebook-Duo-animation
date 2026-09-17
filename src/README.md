@@ -504,7 +504,33 @@ return float4(mix(float3(0.02, 0.035, 0.05), color, mask), 1);   // 画面之外
 .\build\Release\DragonflySensorDiag.exe --fold-effect --glass=clear --glass-preview=55
 ```
 
-### 生命周期与安全门（DisplaySafetyGate）
+### 实时渲染（live capture）
+
+效果**不是一张冻结的截图**：overlay 每帧读取桌面，所以你播放的视频会继续播、窗口会继续刷新、
+鼠标会继续移动 —— 你看到的是**透过玻璃看的真实桌面**。
+
+做法：给 overlay 窗口设置 **`SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`**
+（Windows 10 2004 / build 19041 以上），让 DWM 把它排除在抓屏之外。
+
+为什么必须这样：Desktop Duplication 读的是**合成后的桌面**，如果 overlay 在里面，
+shader 每帧都会采样自己上一帧的输出 —— 画面会逐帧自我叠加，几秒内糊成全黑。
+把它排除掉之后，duplication 交回来的永远是真实桌面，于是可以每帧读一次。
+
+- 窗口未变化时 `AcquireNextFrame` 会超时（不返回帧），**静态桌面因此零开销**，
+  mip 金字塔也只在内容真的变了才重建
+- 老系统上 `SetWindowDisplayAffinity` 会失败 → 自动退回**每次开合抓一张快照**的旧策略，
+  启动横幅会写明当前用的是哪种：
+  `capture live (overlay excluded from capture)` / `capture snapshot per fold (...)`
+- 副作用：你自己的截图/录屏里也不会出现效果层（它本就是"玻璃"，不是桌面内容）
+
+### 交互透明
+
+overlay 是 `WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`：
+鼠标点击**穿透**到下面的真实窗口，键盘焦点不会被抢。加上实时渲染，
+操作在效果里也能立刻看到，所以效果期间电脑是**可正常使用**的。
+
+已知限制：系统光标由 Windows 画在最上层，**不会**跟着画面一起模糊/形变 ——
+任何用户态 overlay 都无法隐藏它（把它画进内容里只会出现两个光标）。
 
 `delta > 0` 只是必要条件，**不是**充分条件。真正决定 overlay 能否出现在屏幕上的是一道安全门，
 同样来自 lid-plane 的策略（`DisplaySafetyGate`：*fail closed, then wait for a stable display

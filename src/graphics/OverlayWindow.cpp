@@ -110,6 +110,18 @@ bool OverlayWindow::ConsumeEnvironmentChange() {
     return changed;
 }
 
+bool OverlayWindow::ExcludeFromCapture() {
+    if (!m_hwnd) {
+        return false;
+    }
+    // WDA_EXCLUDEFROMCAPTURE is Windows 10 2004 (build 19041) and newer.  On
+    // anything older the call fails and the caller must not capture while the
+    // overlay is up.
+    m_captureExcluded =
+        SetWindowDisplayAffinity(m_hwnd, WDA_EXCLUDEFROMCAPTURE) != FALSE;
+    return m_captureExcluded;
+}
+
 void OverlayWindow::Show(bool visible) {
     if (!m_hwnd || m_shown == visible) {
         return;

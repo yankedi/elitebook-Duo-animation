@@ -57,6 +57,20 @@ public:
     // instead of trusting a frame captured before the transition.
     bool ConsumeEnvironmentChange();
 
+    // Asks DWM to leave this window out of screen capture.
+    //
+    // That is what makes a live effect possible: the desktop duplication reads
+    // the composed desktop, so an overlay that is *in* the capture would feed
+    // its own output back into the shader every frame and the picture would
+    // dissolve into itself.  With the exclusion the duplication keeps handing
+    // back the real desktop, so it can be read every frame instead of once per
+    // fold, and video keeps playing through the effect.
+    //
+    // Windows 10 2004 (build 19041) or newer; returns false on anything older,
+    // and the caller has to fall back to a snapshot per fold.
+    bool ExcludeFromCapture();
+    bool CaptureExcluded() const { return m_captureExcluded; }
+
     // Drains the message queue; returns false once the window is gone.
     bool PumpMessages();
     int ConsumeKeyPress();
@@ -84,6 +98,7 @@ private:
     bool m_displayOn = true;
     int m_lidSwitch = -1;
     bool m_environmentChanged = false;
+    bool m_captureExcluded = false;
 };
 
 } // namespace dragonfly

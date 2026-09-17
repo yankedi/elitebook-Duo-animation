@@ -312,12 +312,21 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         SetThreadExecutionState(flags);
     };
 
+    // ---- live capture ------------------------------------------------------
+    // Ask DWM to keep the overlay out of screen capture.  When that works the
+    // duplication can be read *every frame*, so the picture stays live: video
+    // keeps playing, windows keep updating, and the user is looking at their
+    // real desktop through a pane rather than at a photograph of it.  Without
+    // it (pre-2004 Windows) reading the desktop would read our own output back,
+    // and the effect has to freeze on one snapshot per fold instead.
+    const bool liveCapture = overlay.ExcludeFromCapture();
+
     terminal.Write(
         "\nFold effect armed.\n"
-        "The desktop is left completely untouched at or above the activation\n"
-        "angle.  Close the lid below it and the picture holds the activation\n"
-        "angle -- keystoned and progressively blurred -- while the panel tilts.\n"
-        "Open back above it and the desktop returns untouched.\n"
+        "Move the lid and the picture stays where it was while the panel turns\n"
+        "away from it, blurring as the gap opens; hold still and the picture\n"
+        "eases back to wherever the lid is resting.  Above that the desktop is\n"
+        "untouched.\n"
         "\n"
         "STOP: press [ESC] or [F10] -- these are read globally, so they work even\n"
         "      though the overlay holds the screen.  [Q] in this console also works.\n\n");
@@ -330,7 +339,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   "  panel %.0f mm wide, eye %.0f px (%.2f screen heights), parallax %.2f\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
                   "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
-                  "  claim keep-awake: display %s, system-while-closed %s\n\n",
+                  "  capture %s, display %s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
@@ -349,8 +358,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   initialLidSwitch < 0 ? "unknown"
                                        : (initialLidSwitch != 0 ? "open" : "closed"),
                   overlay.LidNotifyActive() ? "yes" : "NO", safety.RecoveryDelay(),
-                  options.keepDisplayAwake ? "yes" : "no",
-                  options.keepSystemAwake ? "yes" : "NO");
+                  liveCapture ? "live (overlay excluded from capture)"
+                              : "snapshot per fold (no capture exclusion)",
+                  options.keepDisplayAwake ? "kept awake" : "system default");
     terminal.Write(setup);
 
     // ---- prime the first frame -------------------------------------------
@@ -765,14 +775,18 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                 }
             }
         } else if (!lastEffectWanted) {
-            // Hide first: a capture taken while the overlay is up would contain
-            // the overlay itself.  Only wait for the hide to reach the compositor
-            // if the overlay was actually on screen.
-            if (overlay.IsShown()) {
-                overlay.Show(false);
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            // With the overlay excluded from capture there is nothing to hide
+            // and nothing to wait for: the frame in hand is a real desktop and
+            // the next one is a frame away.  Without that exclusion a capture
+            // taken while the overlay is up would contain the overlay itself,
+            // so it has to be hidden first and the frame taken with it down.
+            if (!liveCapture) {
+                if (overlay.IsShown()) {
+                    overlay.Show(false);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                }
+                hasContent = grabDesktop();
             }
-            hasContent = grabDesktop();
             lastEffectWanted = true;
             note("effect on", hingeAngle);
         } else if (!hasContent) {
@@ -796,6 +810,26 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         const bool overlayVisible = IsWindowVisible(overlay.Handle()) != FALSE;
 
         if (effectWanted && hasContent) {
+            // Another topmost window can steal the front slot; re-assert it
+            // periodically so the effect cannot end up hidden behind something.
+            if ((++loopCount % 120) == 0) {
+                overlay.BringToFront();
+            }
+
+            // ---- live content ---------------------------------------------
+            // One non-blocking read per frame.  The duplication only hands back
+            // a frame when the desktop actually changed, which is also the only
+            // time the mip chain needs rebuilding -- so a static desktop costs
+            // nothing here.
+            if (liveCapture && capture.Healthy() && capture.AcquireFrame(0)) {
+                capture.CopyFrameTo(device.Context(), content.Get());
+                capture.ReleaseFrame();
+                ++captureCount;
+                hasContent = true;
+                contentDirty = true;
+                lastCaptureSeconds = SteadySeconds();
+            }
+
             // The blur samples the prefiltered chain, so it is rebuilt whenever
             // the content has been written since the last frame.
             if (contentDirty) {
