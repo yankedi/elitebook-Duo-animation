@@ -63,18 +63,16 @@ struct FoldEffectOptions {
     // ---------------------------------------------------------------------
     //  Glass presets.
     //
-    //  "Frosted" is the reference look plus the glass cues; "clear" drops most
-    //  of the blur so the pane reads as a sheet of window glass laid over the
-    //  desktop, with the dispersion and the edge rim doing the work; "plain" is
-    //  the bare ray-plane model with every glass cue switched off, kept so the
-    //  two can be compared by eye.
-    //
-    //  Clear is the default while the material is being judged in motion: it is
-    //  the one that does not hide behind blur, so what the lid does to the
-    //  picture is visible the whole way down.
+    //  "reference" reproduces the look of lid-plane's own renderer: the picture
+    //  is a lit rectangle hanging in a near-black void, blurred by the gap
+    //  between it and the pane, with no tinting or darkening of the picture
+    //  itself.  "glass" adds this project's own glass cues on top of that (see
+    //  the shader header).  "plain" glues the picture to the panel and drops
+    //  every cue, which is the model this project started with and is kept only
+    //  so the difference can be seen side by side.
     // ---------------------------------------------------------------------
-    enum class GlassPreset { Frosted, Clear, Plain };
-    GlassPreset glassPreset = GlassPreset::Clear;
+    enum class GlassPreset { Reference, Glass, Plain };
+    GlassPreset glassPreset = GlassPreset::Reference;
 
     // ---- material overrides, applied after the preset ---------------------
     // Negative means "keep the preset".  Judging a material is a loop of
@@ -85,12 +83,16 @@ struct FoldEffectOptions {
     float sheenOverride = -1.0f;
     float edgeOverride = -1.0f;
 
-    // How far the eye is from the content plane, in millimetres.  This is the
-    // knob that decides how strongly the picture stays put: closer means more
-    // parallax.  450 mm is a comfortable viewing distance for a laptop.
-    float eyeDistanceMm = 450.0f;
-    // Overrides eyeDistanceMm when positive; see the command line.
-    float eyeDistanceMmOverride = -1.0f;
+    // How far the eye is from the picture, in millimetres.  Zero or less means
+    // "use the reference's screen-height ratio" below, which is what its look is
+    // calibrated around.  Set it to convert a real viewing distance instead:
+    // closer means the picture stays put more strongly and the void shows more.
+    float eyeDistanceMm = 0.0f;
+
+    // The reference's eye, in screen heights: (0, 0.65, 1.6).  Resolution
+    // independent, and the numbers its look was tuned with.
+    float eyeDistanceHeights = 1.6f;
+    float eyeHeightHeights = 0.65f;
     // Overrides the preset's parallax (0 = glued to the panel, 1 = anchored).
     float parallaxOverride = -1.0f;
 

@@ -414,35 +414,41 @@ radius = blurStrength × smoothstep(0.08, 1.0, height) × sin(delta) × 屏高/1
 - `smoothstep(0.08, 1.0, …)`：靠近铰链的最后一段保持清晰（参考 lid-plane）
 - 按屏高归一化 → 换分辨率不会改变观感
 
-### Shader 模型：屏幕是窗户，画面留在房间里
+### Shader 模型：屏幕是窗户，画面是空间里的物体
 
-模型取自 `iphone-duo`（见 `ATTRIBUTION.md`）。它的片元着色器把这个想法写得最清楚：
+模型 = `iphone-duo` 的"世界锚定窗口"（眼睛固定在身体坐标系、射线打到不动的平面）
++ **`lid-plane` 的具体投影数学**（`Renderer.swift` 第 229-264 行）。后者的片元着色器是：
 
-```glsl
-vec3 ray = displayPosition - displayCamera;                               // 眼睛 → 像素
-vec3 intersection = displayCamera + ray * (-displayCamera.z / rayDepth);  // 打到不动的平面
-vec2 planeUv = intersection.xy / planeSize + 0.5;
-vec2 projectedUv = mix(screenUv, planeUv, parallax * projection);         // 贴屏 ←→ 世界锚定
+```metal
+float3 eye = float3(0, 0.65, 1.6);                              // 眼位：以屏高为单位
+float3 physical = float3((uv.x-0.5)*p.y, height*cos(a), depth);
+float t = eye.z / max(0.25, eye.z-physical.z);
+float3 hit = eye + t * (physical-eye);
+uv = float2(hit.x/p.y + 0.5, 1.0-hit.y);
+...
+float2 coverage = smoothstep(-feather, feather, uv)
+                * (1.0 - smoothstep(1.0-feather, 1.0+feather, uv));
+return float4(mix(float3(0.02, 0.035, 0.05), color, mask), 1);   // 画面之外 = 虚空
 ```
 
-**眼睛固定在身体坐标系里，画面锚定在一个不动的平面上**；屏幕旋转时只是"窗户"在转，
-画面因此在本来的虚拟位置上滑动 —— 就像你转动一块玻璃，墙上的画在玻璃里滑过。
+三件事决定了观感，缺一不可：
 
-决定成败的只有一件事：**眼睛距离**。
-
-| 眼睛距离 | 视差 | 观感 |
+| 要素 | 参考做法 | 曾经的做法（错） |
 |---|---|---|
-| 6.4 × 屏宽 ≈ 1.9 m（旧实现，照抄参考的 `450mm/70mm` 比例） | 最大 ~1.5% | 画面像**贴在屏幕上**，只剩梯形和模糊 |
-| **450 mm**（真实观看距离，当前默认） | 最大 ~45% | 画面**留在房间里**，屏幕转动时从画面上滑过 |
+| **画面之外** | **近黑虚空**（0.02,0.035,0.05），边界按模糊 3σ 羽化 | 把画面**拉伸出屏幕**（clamp）→ 看起来像被拉伸的壁纸 |
+| **眼位** | `(0, 0.65, 1.6)`，以**屏高**为单位（本机 1728 px） | 450 mm 外、眼高 0.5 |
+| **压暗** | **没有**，画面是亮的 | 乘 0.72 暗化 → 像烟熏塑料 |
 
-换算必须用**面板的物理尺寸**：桌面覆盖整个面板，所以 `px/mm = 桌面宽度 / 面板宽度`。
-Windows 报的 DPI 是逻辑 DPI（显示缩放会改它），不能用。面板宽度从 **EDID** 读取
-（本机实测 294 mm → 6.53 px/mm → 450 mm = 2939 px）。
+"虚空"是"虚拟空间感"的来源：桌面成了**空间里一块发亮的矩形**，面板是它前面的玻璃；
+没有虚空，就只是"一张铺满屏幕的模糊壁纸"。本机实测眼位 1728 px = 1.60 屏高。
 
-- `parallax`：0 = 画面贴屏（旧模型），1 = 世界锚定；两者之间可以交叉淡入
-- 眼睛位置默认在屏幕中线高度（`eyeUpPx = 屏高/2`），即人坐在笔记本前的实际眼高
-- 画面滑出内容平面之外时，采样被钳制，因此那一片会淡入反射色 —— 读起来像**玻璃边缘反光**，
-  而不是被拉长的边框
+模糊也照参考的做法改成**金字塔预滤波**（mip 链 + `GenerateMips`，`lod = log2(max(1, radius/3))`），
+再用 8 个抖动采样补结构 —— 参考用 4 级预模糊高斯（σ = 2/6/16/40 × 屏高/1000），
+手写 32 点卷积在大半径下会有明显颗粒感，金字塔是平滑的。
+
+- `parallax`：0 = 画面贴屏（旧模型），1 = 世界锚定
+- `--glass-preview=DEG` 固定倾角预览；`--glass=reference|glass|plain` 三种材质
+  （`reference` = 完全复刻参考观感，默认；`glass` = 额外叠加本项目设计的玻璃线索）
 
 ### 玻璃材质线索（本项目新增，非参考项目做法）
 

@@ -32,17 +32,22 @@ namespace {
 
 // Creates the texture the shader samples.  The capture's own frame has to be
 // released every cycle, so its contents are copied here first.
+//
+// A full mip chain is allocated because the blur samples it: a prefiltered
+// level is what makes a 60 px radius smooth instead of speckled, and it costs
+// one sample rather than a wide hand-written kernel.
 bool CreateContentTexture(ID3D11Device* device, uint32_t width, uint32_t height,
                           Microsoft::WRL::ComPtr<ID3D11Texture2D>& out) {
     D3D11_TEXTURE2D_DESC description{};
     description.Width = width;
     description.Height = height;
-    description.MipLevels = 1;
+    description.MipLevels = 0;  // full chain, filled in by GenerateMips
     description.ArraySize = 1;
     description.Format = DXGI_FORMAT_B8G8R8A8_UNORM;  // matches the duplication output
     description.SampleDesc.Count = 1;
     description.Usage = D3D11_USAGE_DEFAULT;
-    description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    description.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    description.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
     return SUCCEEDED(device->CreateTexture2D(&description, nullptr, &out));
 }
 
@@ -195,43 +200,43 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     FoldEffectParameters parameters;
     parameters.maxDeltaDegrees = options.maxDeltaDegrees;
     parameters.blurStrength = options.blurStrength;
-    parameters.darkening = options.darkening;
 
-    // ---- physical geometry -------------------------------------------------
-    // The eye distance has to be a real distance, because it is the parallax
-    // that makes the picture stay put while the panel turns.  It is given in
-    // millimetres and converted with the panel's own scale, which comes from its
-    // EDID; a nominal 13.3" panel is the fallback.
+    // ---- the viewer --------------------------------------------------------
+    // The reference gives the eye in screen heights -- (0, 0.65, 1.6) -- and its
+    // look is calibrated around that, so it is the default.  A real distance in
+    // millimetres can be given instead; the panel's physical size comes from its
+    // EDID, because the DPI Windows reports is the logical one.
     const double panelWidthMm = PrimaryPanelWidthMm();
-    const double pxPerMm = (panelWidthMm > 0.0)
-                               ? (static_cast<double>(width) / panelWidthMm)
-                               : (static_cast<double>(width) / 294.0);
-    parameters.eyeDistancePx =
-        static_cast<float>(options.eyeDistanceMm * pxPerMm);
-    // Eye level with the middle of the screen, which is where a person sitting
-    // in front of a laptop actually has it.
-    parameters.eyeUpPx = static_cast<float>(height) * 0.5f;
-    parameters.edgeFadePx = static_cast<float>(height) * 0.06f;
+    const double panelHeightMm =
+        (panelWidthMm > 0.0) ? (panelWidthMm * static_cast<double>(height) /
+                                static_cast<double>(width))
+                             : 165.0;  // nominal 13.3" 16:9
+    const double eyeHeights = (options.eyeDistanceMm > 0.0f)
+                                  ? (options.eyeDistanceMm / panelHeightMm)
+                                  : options.eyeDistanceHeights;
+    parameters.eyeDistancePx = static_cast<float>(eyeHeights * height);
+    parameters.eyeUpPx = static_cast<float>(options.eyeHeightHeights * height);
+    // A floor for the edge feather, so the picture's boundary is never razor
+    // sharp even where the pane is clear; the blur adds its own width on top.
+    parameters.edgeFadePx = 2.0f;
 
     switch (options.glassPreset) {
-    case FoldEffectOptions::GlassPreset::Frosted:
-        // Frosted pane: the world-anchored picture seen through scatter.
-        parameters.blurStrength = 26.0f;
+    case FoldEffectOptions::GlassPreset::Reference:
+        // Exactly the reference's look: bright picture, dark void, no tinting.
+        parameters.darkening = 0.0f;
+        parameters.sheenStrength = 0.0f;
+        parameters.edgeGlow = 0.0f;
+        parameters.dispersionPx = 0.0f;
+        parameters.scatterDesaturation = 0.0f;
         break;
-    case FoldEffectOptions::GlassPreset::Clear:
-        // Barely any scatter: the pane is a sheet of window glass, so the
-        // dispersion at the edges and the reflection sweep carry the effect.
-        parameters.blurStrength = 10.0f;
-        parameters.sheenStrength = 0.30f;
-        parameters.edgeGlow = 0.50f;
-        parameters.dispersionPx = 5.0f;
-        parameters.scatterDesaturation = 0.12f;
-        parameters.attenuationFloor = 0.88f;
+    case FoldEffectOptions::GlassPreset::Glass:
+        // The reference plus this project's glass cues.
+        parameters.darkening = 0.006f;
         break;
     case FoldEffectOptions::GlassPreset::Plain:
-        // The model as it was before: picture glued to the panel, no glass cues.
-        // Kept so the two can be compared directly.
+        // The model as it was before: picture glued to the panel, no cues.
         parameters.parallax = 0.0f;
+        parameters.darkening = 0.015f;
         parameters.sheenStrength = 0.0f;
         parameters.edgeGlow = 0.0f;
         parameters.dispersionPx = 0.0f;
@@ -255,10 +260,6 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     }
     if (options.parallaxOverride >= 0.0f) {
         parameters.parallax = options.parallaxOverride;
-    }
-    if (options.eyeDistanceMmOverride > 0.0f) {
-        parameters.eyeDistancePx =
-            static_cast<float>(options.eyeDistanceMmOverride * pxPerMm);
     }
 
     const UINT dpi = GetDpiForWindow(overlay.Handle());
@@ -319,24 +320,22 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   "  display %ux%u, %u dpi -> eye distance %.0f px\n"
                   "  activation %.0f deg, blur %.0f/1000px, darken %.3f, max delta %.0f deg\n"
                   "  glass %s (sheen %.2f, edge %.2f, dispersion %.1f px)\n"
-                  "  panel %.0f mm (%.2f px/mm), eye %.0f mm -> %.0f px, parallax %.2f\n"
+                  "  panel %.0f mm wide, eye %.0f px (%.2f screen heights), parallax %.2f\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
                   "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
                   "  claim keep-awake: display %s, system-while-closed %s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
-                  options.glassPreset == FoldEffectOptions::GlassPreset::Clear
-                      ? "clear"
+                  options.glassPreset == FoldEffectOptions::GlassPreset::Reference
+                      ? "reference"
                       : (options.glassPreset == FoldEffectOptions::GlassPreset::Plain
                              ? "plain"
-                             : "frost"),
+                             : "glass"),
                   parameters.sheenStrength, parameters.edgeGlow,
                   parameters.dispersionPx,
-                  panelWidthMm > 0.0 ? panelWidthMm : 294.0, pxPerMm,
-                  options.eyeDistanceMmOverride > 0.0f ? options.eyeDistanceMmOverride
-                                                      : options.eyeDistanceMm,
-                  parameters.eyeDistancePx, parameters.parallax,
+                  panelWidthMm > 0.0 ? panelWidthMm : 294.0,
+                  parameters.eyeDistancePx, eyeHeights, parameters.parallax,
                   capture.Width(), capture.Height(), static_cast<int>(capture.Format()),
                   width, height, overlay.DisplayOn() ? "on" : "off",
                   overlay.DisplayNotifyActive() ? "yes" : "NO",
@@ -407,6 +406,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     uint64_t captureCount = 0;
     uint64_t loopCount = 0;
     uint64_t modeChanges = 0;
+    // The priming capture below has already written the content texture, so the
+    // chain starts out dirty; every copy sets it again.
+    bool contentDirty = true;
 
     // Environment bookkeeping, for the transition log and the gate.
     DisplaySafetyGate::State lastGateState = DisplaySafetyGate::State::Recovering;
@@ -438,6 +440,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                 capture.ReleaseFrame();
                 ++captureCount;
                 hasContent = true;
+                contentDirty = true;
                 lastCaptureSeconds = SteadySeconds();
                 return true;
             }
@@ -715,6 +718,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                     capture.ReleaseFrame();
                     ++captureCount;
                     hasContent = true;
+                    contentDirty = true;
                     lastCaptureSeconds = SteadySeconds();
                 }
             }
@@ -750,6 +754,12 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         const bool overlayVisible = IsWindowVisible(overlay.Handle()) != FALSE;
 
         if (effectWanted && hasContent) {
+            // The blur samples the prefiltered chain, so it is rebuilt whenever
+            // the content has been written since the last frame.
+            if (contentDirty) {
+                renderer.UpdateContent(device.Context(), content.Get());
+                contentDirty = false;
+            }
             device.BeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
             renderer.Render(device.Context(), content.Get(),
                             device.BackBuffer(),

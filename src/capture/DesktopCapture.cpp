@@ -137,7 +137,7 @@ void DesktopCapture::CopyFrameTo(ID3D11DeviceContext* context,
         return;
     }
 
-    context->CopyResource(destination, m_frame.Get());
+    context->CopySubresourceRegion(destination, 0, 0, 0, 0, m_frame.Get(), 0, nullptr);
 
     // Submit immediately.  D3D11 records commands asynchronously, and the
     // duplication API is free to overwrite its texture the moment the frame is

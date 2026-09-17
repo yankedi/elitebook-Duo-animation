@@ -8,7 +8,7 @@
 | `duo-open` | MIT (Copyright (c) 2026 marcoazeem) | 仅作架构参考（overlay 生命周期、capture 流程）。未复制代码。 |
 | `iphone-duo` | MIT（代码与 SVG 素材）；Apple 模型/壁纸不受 MIT 覆盖 | **世界锚定窗口模型**（眼睛固定在身体坐标系、射线打到不动的平面、`mix(screenUv, planeUv, parallax)`）。未复制代码。 |
 | `iphone-duo-animation` | MIT (Copyright (c) 2026 Akash T) | 仅作视觉目标参考（折叠几何、曲面过渡）。未复制代码。 |
-| `lid-plane` (jh3y/lid-plane) | **GPL-3.0-or-later** | **仅作策略参考**：激活角语义、角度差驱动、按屏高归一化的模糊标定、`DisplaySafetyGate`（合盖/显示器不可用/传感器失联时暂停并隐藏，恢复后等待稳定期）。GPL 源码**未复制、未改写、未链接**；本项目为独立实现，见下文第 6、7 条。 |
+| `lid-plane` (jh3y/lid-plane) | **GPL-3.0-or-later** | **仅作策略与数学形式参考**：激活角语义、角度差驱动、`DisplaySafetyGate`、以及**投影数学本身**（`Renderer.swift` 的 `eye/physical/t/hit` 射线-平面求交、按模糊 3σ 羽化的画面边界、画面之外的虚空底色）。GPL 源码**未复制、未改写、未链接**；HLSL 实现、常量缓冲、采样方式均为本项目自行编写。 |
 
 ## 从参考实现中提炼、并在本项目中重新实现的概念
 

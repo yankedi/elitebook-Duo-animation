@@ -82,7 +82,7 @@ cbuffer EffectConstants : register(b0)
     float  parallax;            // 0 = picture glued to the panel (old model),
                                 // 1 = fully anchored in the body frame
     float  eyeUpPx;             // eye height above the hinge, along the plane
-    float  edgeFade;            // width of the fade at the content plane's edge
+    float  edgeFade;            // minimum feather at the picture's edge, pixels
     float  padding;
 };
 
@@ -92,9 +92,22 @@ SamplerState contentSampler : register(s0);
 static const float GOLDEN_ANGLE = 2.39996322972865332;
 static const float TWO_PI = 6.28318530717958648;
 
+// What is behind the picture.  The reference puts a near-black void there, and
+// that is what makes the desktop read as an object sitting in space instead of
+// a wallpaper stretched across the pane -- the single most important difference
+// between "a screen in a virtual room" and "a smeared screenshot".
+static const float3 VOID_COLOUR = float3(0.02, 0.035, 0.05);
+
 float3 SampleRgb(float2 pixel)
 {
     return contentTexture.Sample(contentSampler, pixel / resolution).rgb;
+}
+
+// Same as SampleRgb but off a prefiltered level of the mip chain, which is what
+// makes a large radius smooth instead of speckled.
+float3 SampleLevelRgb(float2 pixel, float lod)
+{
+    return contentTexture.SampleLevel(contentSampler, pixel / resolution, lod).rgb;
 }
 
 float Luminance(float3 colour)
@@ -164,10 +177,8 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     const float2 coord = lerp(fragCoord, anchored, saturate(parallax));
 
     // Where the window has moved past the picture, the sample is clamped and
-    // the area fades into the reflection instead of smearing.
-    const float2 outside = max(float2(0.0, 0.0), max(-coord, coord - maxCoord));
-    const float outsidePx = max(outside.x, outside.y);
-    const float coverage = 1.0 - saturate(outsidePx / max(edgeFade, 1.0));
+    // the area falls back to the void; the feather is computed once the blur
+    // radius is known, further down.
 
     // ---- scatter ------------------------------------------------------------
     // The gap between the pane and the content plane is what scatters: it grows
@@ -193,7 +204,23 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     }
 
     const float2 clamped = clamp(coord, float2(0.0, 0.0), maxCoord);
+    const float2 contentUv = coord / resolution;
+
+    // The picture is a finite rectangle in space, and the reference blurs its
+    // boundary by the same amount it blurs the picture -- three sigma on either
+    // side, which is what a Gaussian would do to an edge.  edgeFade is a floor,
+    // so the boundary is never razor sharp even where the pane is clear.
+    const float sigmaUnits = radius * resolution.y / 1000.0;
+    const float2 feather =
+        max(float2(3.0, 3.0) * sigmaUnits / resolution,
+            float2(edgeFade, edgeFade) / resolution);
+    const float2 coverage =
+        smoothstep(-feather, feather, contentUv) *
+        (1.0 - smoothstep(1.0 - feather, 1.0 + feather, contentUv));
+    const float mask = coverage.x * coverage.y;
+
     float3 scattered;
+    const float lod = max(0.0, log2(max(1.0, radius / 3.0)));
 
     if (radius < 0.5)
     {
@@ -201,28 +228,31 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     }
     else
     {
-        // Vogel disk with a per-pixel rotation, so banding reads as glass grain.
-        const float tapsF = clamp(radius * 2.0, 6.0, 32.0);
+        // A Gaussian pyramid (the mip chain) for the bulk of the haze, plus a
+        // handful of rotated taps for structure.  Gathering the whole kernel by
+        // hand leaves visible speckle at these radii; the pyramid is smooth and
+        // costs one sample.
+        const float tapsF = 8.0;
         const float rotation =
             frac(sin(dot(fragCoord, float2(12.9898, 78.233))) * 43758.5453) * TWO_PI;
 
-        float3 sum = float3(0.0, 0.0, 0.0);
-        float weightSum = 0.0;
+        float3 sum = SampleLevelRgb(clamped, lod) * 2.0;
+        float weightSum = 2.0;
 
         [loop]
-        for (int i = 0; i < 32; ++i)
+        for (int i = 0; i < 8; ++i)
         {
             const float fi = float(i);
-            const float w = 1.0 - step(tapsF, fi);
             const float r = radius * sqrt((fi + 0.5) / tapsF);
             const float a = fi * GOLDEN_ANGLE + rotation;
             const float2 tap = clamp(clamped + r * float2(cos(a), sin(a)),
                                      float2(0.0, 0.0), maxCoord);
-            sum += SampleRgb(tap) * w;
+            const float w = 1.0 - 0.5 * (fi / tapsF);
+            sum += SampleLevelRgb(tap, lod) * w;
             weightSum += w;
         }
 
-        scattered = sum / max(weightSum, 1.0);
+        scattered = sum / weightSum;
         scattered = lerp(scattered, Luminance(scattered).xxx, scatterDesaturation);
     }
 
@@ -249,11 +279,13 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
         lerp(float3(0.16, 0.19, 0.26), float3(0.58, 0.62, 0.70), saturate(height));
     colour += (sheen + glow) * reflectionTint;
 
-    // Beyond the picture: the same reflection, so the pane's edge reads as glass
-    // rather than as a stretched border.
-    colour = lerp(reflectionTint * (0.5 + 0.5 * tilt), colour, coverage);
-
-    return float4(colour, 1.0);
+    // ---- behind the picture -------------------------------------------------
+    // Past the picture's own rectangle there is nothing to show, and the
+    // reference is explicit about what belongs there: a near-black void.  That
+    // is the whole trick -- it turns the desktop into a lit rectangle hanging in
+    // space and the panel into the glass in front of it, instead of a wallpaper
+    // stretched to fill whatever the projection happens to cover.
+    return float4(lerp(VOID_COLOUR, colour, mask), 1.0);
 }
 )HLSL";
 

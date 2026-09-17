@@ -179,6 +179,19 @@ float FoldRenderer::ClampDelta(float angleDeltaDeg,
 // ==========================================================================
 //  Rendering
 // ==========================================================================
+// ==========================================================================
+//  Content binding
+// ==========================================================================
+void FoldRenderer::UpdateContent(ID3D11DeviceContext* context,
+                                 ID3D11Texture2D* desktop) {
+    if (!context || !BindContent(desktop)) {
+        return;
+    }
+    // The blur reads the prefiltered levels, so they have to be rebuilt after
+    // every write to level 0.
+    context->GenerateMips(m_contentView.Get());
+}
+
 bool FoldRenderer::BindContent(ID3D11Texture2D* desktop) {
     if (!desktop || !m_device) {
         return false;

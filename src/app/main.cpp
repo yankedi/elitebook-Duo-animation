@@ -76,14 +76,14 @@ struct Options {
     bool dumpFrames = false;
     bool allowDisplayOff = false;
     bool keepSystemAwake = false;
-    std::wstring glass = L"clear";
+    std::wstring glass = L"reference";
     double glassPreviewDegrees = 0.0;
     double blurOverride = -1.0;
     double dispersionOverride = -1.0;
     double sheenOverride = -1.0;
     double edgeOverride = -1.0;
     double parallaxOverride = -1.0;
-    double eyeDistanceMm = -1.0;
+    double eyeDistanceMm = 0.0;
     bool help = false;
 };
 
@@ -242,12 +242,12 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             options.glassPreviewDegrees = degrees;
         } else if (argument.rfind(L"--glass=", 0) == 0) {
             const std::wstring which = argument.substr(8);
-            if (which == L"frost") {
-                options.glass = L"frost";
-            } else if (which == L"clear") {
-                options.glass = L"clear";
+            if (which == L"glass" || which == L"frost" || which == L"clear") {
+                options.glass = L"glass";
             } else if (which == L"plain") {
                 options.glass = L"plain";
+            } else if (which == L"reference") {
+                options.glass = L"reference";
             } else {
                 return false;
             }
@@ -893,12 +893,13 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.dumpFrames = options.dumpFrames;
         foldOptions.keepDisplayAwake = !options.allowDisplayOff;
         foldOptions.keepSystemAwake = options.keepSystemAwake;
-        if (options.glass == L"clear") {
-            foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Clear;
+        if (options.glass == L"glass") {
+            foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Glass;
         } else if (options.glass == L"plain") {
             foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Plain;
         } else {
-            foldOptions.glassPreset = dragonfly::FoldEffectOptions::GlassPreset::Frosted;
+            foldOptions.glassPreset =
+                dragonfly::FoldEffectOptions::GlassPreset::Reference;
         }
         foldOptions.previewDeltaDegrees = options.glassPreviewDegrees;
         foldOptions.blurOverride = static_cast<float>(options.blurOverride);
@@ -906,7 +907,7 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.sheenOverride = static_cast<float>(options.sheenOverride);
         foldOptions.edgeOverride = static_cast<float>(options.edgeOverride);
         foldOptions.parallaxOverride = static_cast<float>(options.parallaxOverride);
-        foldOptions.eyeDistanceMmOverride = static_cast<float>(options.eyeDistanceMm);
+        foldOptions.eyeDistanceMm = static_cast<float>(options.eyeDistanceMm);
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();

@@ -105,6 +105,11 @@ public:
                 float angleDeltaDeg,
                 const FoldEffectParameters& parameters);
 
+    // Binds `desktop` and regenerates its prefiltered levels.  Must be called
+    // after the content texture has been written and before Render() samples it:
+    // GenerateMips is what fills the chain the blur reads.
+    void UpdateContent(ID3D11DeviceContext* context, ID3D11Texture2D* desktop);
+
     // Clamps a raw delta to the range the shader accepts.
     static float ClampDelta(float angleDeltaDeg,
                             const FoldEffectParameters& parameters);
