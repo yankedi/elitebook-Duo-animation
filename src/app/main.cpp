@@ -84,6 +84,8 @@ struct Options {
     double edgeOverride = -1.0;
     double parallaxOverride = -1.0;
     double eyeDistanceMm = 0.0;
+    double screenDepthRatio = 0.45;
+    bool layeredOverlay = true;
     bool help = false;
 };
 
@@ -142,6 +144,8 @@ const wchar_t* kHelp =
     L"  --eye=MM        eye distance from the pane (default 450). Smaller = the\n"
     L"                  picture stays put more strongly while the lid moves\n"
     L"  --parallax=N    0 = picture glued to the panel, 1 = anchored in the room\n"
+    L"  --no-layered-overlay  drop WS_EX_LAYERED (breaks click-through; for\n"
+    L"                  testing whether a layered window is what flickers)\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -271,6 +275,12 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             if (!ParseNumberArgument(argument, 11, options.parallaxOverride)) {
                 return false;
             }
+        } else if (argument.rfind(L"--depth=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 8, options.screenDepthRatio)) {
+                return false;
+            }
+        } else if (argument == L"--no-layered-overlay") {
+            options.layeredOverlay = false;
         } else if (argument.rfind(L"--eye=", 0) == 0) {
             if (!ParseNumberArgument(argument, 6, options.eyeDistanceMm)) {
                 return false;
@@ -908,6 +918,8 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.edgeOverride = static_cast<float>(options.edgeOverride);
         foldOptions.parallaxOverride = static_cast<float>(options.parallaxOverride);
         foldOptions.eyeDistanceMm = static_cast<float>(options.eyeDistanceMm);
+        foldOptions.screenDepthRatio = static_cast<float>(options.screenDepthRatio);
+        foldOptions.layeredOverlay = options.layeredOverlay;
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();

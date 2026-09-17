@@ -36,7 +36,7 @@ struct FoldConstants {
     float parallax;
     float eyeUpPx;
     float edgeFadePx;
-    float padding;
+    float screenDepthPx;
 };
 
 constexpr float kPi = 3.14159265358979323846f;
@@ -242,7 +242,7 @@ void FoldRenderer::Render(ID3D11DeviceContext* context,
     constants.parallax = std::clamp(parameters.parallax, 0.0f, 1.0f);
     constants.eyeUpPx = parameters.eyeUpPx;
     constants.edgeFadePx = parameters.edgeFadePx;
-    constants.padding = 0.0f;
+    constants.screenDepthPx = parameters.screenDepthPx;
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (SUCCEEDED(context->Map(m_constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,

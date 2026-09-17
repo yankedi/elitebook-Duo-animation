@@ -164,7 +164,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   std::atomic<bool>& stopFlag, ui::Terminal& terminal) {
     // ---- overlay window ---------------------------------------------------
     OverlayWindow overlay;
-    if (!overlay.Create(L"Dragonfly Fold Effect")) {
+    if (!overlay.Create(L"Dragonfly Fold Effect", options.layeredOverlay)) {
         terminal.Write("ERROR: could not create the overlay window.\n");
         return 1;
     }
@@ -227,6 +227,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // A floor for the edge feather, so the picture's boundary is never razor
     // sharp even where the pane is clear; the blur adds its own width on top.
     parameters.edgeFadePx = 2.0f;
+    // The picture hangs behind the pane's plane; see FoldEffectParameters.
+    parameters.screenDepthPx =
+        static_cast<float>(options.screenDepthRatio * parameters.eyeDistancePx);
 
     switch (options.glassPreset) {
     case FoldEffectOptions::GlassPreset::Reference:
@@ -840,11 +843,6 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         if (effectWanted && hasContent) {
             overlay.Show(true);
             showSystemCursor(false);  // the pointer is part of the picture now
-            // Another topmost window can steal the front slot; re-assert it
-            // periodically so the effect cannot end up hidden behind something.
-            if ((++loopCount % 120) == 0) {
-                overlay.BringToFront();
-            }
         }
         // Read the real window state rather than our own bookkeeping: if the
         // system refuses to show the window, the status line must say so.

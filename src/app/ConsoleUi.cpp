@@ -380,6 +380,7 @@ std::string FormatStartupReport(const std::vector<ChannelInfo>& channels,
     out += Line("  --blur=N --dispersion=N --sheen=N --edge=N   material overrides");
     out += Line("  --eye=MM        eye distance from the pane (default 450 mm)");
     out += Line("  --parallax=N    0 = picture glued to the panel, 1 = anchored in the room");
+    out += Line("  --no-layered-overlay  drop WS_EX_LAYERED (breaks click-through; for testing)");
     out += Line("");
     out += Line("  Fold progress is a visual quantity; no physical angle is estimated.");
     out += Line("");

@@ -19,7 +19,7 @@ const GUID kLidSwitchState =
 
 } // namespace
 
-bool OverlayWindow::Create(const std::wstring& title) {
+bool OverlayWindow::Create(const std::wstring& title, bool layered) {
     if (m_hwnd) {
         return true;
     }
@@ -49,6 +49,12 @@ bool OverlayWindow::Create(const std::wstring& title) {
         return false;
     }
 
+    DWORD extendedStyle = WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE |
+                          WS_EX_TOOLWINDOW;
+    if (layered) {
+        extendedStyle |= WS_EX_LAYERED;
+    }
+
     m_hwnd = CreateWindowExW(
         // Topmost, click-through, never steals focus or shows in the taskbar.
         //
@@ -57,8 +63,7 @@ bool OverlayWindow::Create(const std::wstring& title) {
         // testing, so without the layered flag this window swallows every click
         // on the desktop.  WM_NCHITTEST below answers HTTRANSPARENT as well, so
         // the two agree.
-        WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE |
-            WS_EX_TOOLWINDOW,
+        extendedStyle,
         kWindowClass, title.c_str(), WS_POPUP,
         0, 0, static_cast<int>(m_width), static_cast<int>(m_height),
         nullptr, nullptr, instance, this);
@@ -67,9 +72,11 @@ bool OverlayWindow::Create(const std::wstring& title) {
         return false;
     }
 
-    // Constant alpha 255: fully opaque, but a layered window.  Hit testing skips
-    // it and clicks land on whatever is underneath.
-    SetLayeredWindowAttributes(m_hwnd, 0, 255, LWA_ALPHA);
+    if (layered) {
+        // Constant alpha 255: fully opaque, but a layered window.  Hit testing
+        // skips it and clicks land on whatever is underneath.
+        SetLayeredWindowAttributes(m_hwnd, 0, 255, LWA_ALPHA);
+    }
 
     // Created hidden; the effect shows it only while it has something to draw.
     m_shown = false;
@@ -223,10 +230,6 @@ LRESULT OverlayWindow::HandleMessage(HWND window, UINT message, WPARAM wParam,
 
     case WM_MOUSEACTIVATE:
         return MA_NOACTIVATE;
-
-    case WM_SETCURSOR:
-        // Never take the cursor over: the window below decides its shape.
-        return FALSE;
 
     case WM_POWERBROADCAST:
         switch (wParam) {

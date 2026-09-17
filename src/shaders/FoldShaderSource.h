@@ -79,11 +79,13 @@ cbuffer EffectConstants : register(b0)
     float  dispersionPx;        // per-channel radial offset at full tilt
     float  scatterDesaturation; // how colourless the scattered light becomes
 
-    float  parallax;            // 0 = picture glued to the panel (old model),
-                                // 1 = fully anchored in the body frame
+    float  parallax;            // 0 = picture glued to the pane (old model),
+                                // 1 = fully anchored in the room
     float  eyeUpPx;             // eye height above the hinge, along the plane
     float  edgeFade;            // minimum feather at the picture's edge, pixels
-    float  padding;
+    float  screenDepthPx;       // how far behind the pane's anchored plane the
+                                // picture hangs; 0 puts it back on that plane,
+                                // which is what made it swell as the lid closed
 };
 
 Texture2D    contentTexture : register(t0);
@@ -157,25 +159,53 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     // ---- the window ---------------------------------------------------------
     // The pane rotates about the hinge by delta, so a point d from the hinge
     // sits d*sin(delta) closer to the eye and d*cos(delta) shorter along the
-    // plane.  The ray from the eye through that point is continued until it
-    // meets the content plane, which has not moved.
+    // plane.  That is all the geometry the picture needs: where the pane is.
     const float hingeY = (hingeFromTop > 0.5) ? 0.0 : resolution.y;
     const float side = (hingeFromTop > 0.5) ? 1.0 : -1.0;
-    const float2 pane = float2(fragCoord.x, hingeY + side * d * cos(delta));
     const float gap = d * sin(delta);
 
-    const float2 eye = float2(resolution.x * 0.5, hingeY + side * eyeUpPx);
-    const float depth = eyeDistancePx - gap;
-    if (depth <= 1e-3)
+    // ---- the picture --------------------------------------------------------
+    // The picture is held in the *eye's* frame: a fixed angular rectangle, sized
+    // to exactly what the pane subtends when it is at the anchor.  So turning
+    // the pane changes nothing about the picture itself -- it neither swells nor
+    // slides -- and what moves is the pane, which reveals more of the space
+    // around the picture as it swings towards the eye.
+    //
+    // The earlier construction intersected the ray with the anchored *plane*.
+    // That is a window, and a window coming closer magnifies what is behind it:
+    // the picture grew as the lid closed, which reads as being stretched upward
+    // and tipped away.  Holding it at a fixed angle is what "the picture does
+    // not move, only the glass does" actually means.
+    //
+    // Both sub-planes are done in (distance-along-the-plane, distance-from-the-
+    // eye) coordinates: the angle off the eye's axis is atan2 of the in-plane
+    // offset over the forward distance, and the picture's own span is the same
+    // angle measured at the anchor.
+    const float forward = eyeDistancePx - gap;   // distance from the eye to the pane
+    if (forward <= 1.0)
     {
         return float4(0.0, 0.0, 0.0, 1.0);
     }
 
-    const float2 anchored = eye + (pane - eye) * (eyeDistancePx / depth);
+    // Vertical: 0 at the hinge, up to resolution.y at the far edge.
+    const float angleUp = atan2(d * cos(delta) - eyeUpPx, forward);
+    const float anchorLow = atan2(-eyeUpPx, eyeDistancePx);
+    const float anchorHigh = atan2(resolution.y - eyeUpPx, eyeDistancePx);
+    const float pictureV = (angleUp - anchorLow) / (anchorHigh - anchorLow);
 
-    // parallax = 0 glues the picture to the panel; 1 leaves it where it is in
-    // the room.  Everything downstream works on whichever was chosen.
-    const float2 coord = lerp(fragCoord, anchored, saturate(parallax));
+    // Horizontal, the same way about the pane's centre line.
+    const float halfWidth = resolution.x * 0.5;
+    const float angleAcross = atan2(fragCoord.x - halfWidth, forward);
+    const float anchorLeft = atan2(-halfWidth, eyeDistancePx);
+    const float anchorRight = atan2(halfWidth, eyeDistancePx);
+    const float pictureU = (angleAcross - anchorLeft) / (anchorRight - anchorLeft);
+
+    // 0 at the picture's top, 1 at its bottom, matching the desktop texture.
+    const float2 pictureUv = float2(pictureU, 1.0 - pictureV);
+
+    // parallax = 0 glues the picture to the pane; 1 leaves it hanging in place.
+    const float2 screenUv = lerp(uv, pictureUv, saturate(parallax));
+    const float2 coord = screenUv * resolution;
 
     // Where the window has moved past the picture, the sample is clamped and
     // the area falls back to the void; the feather is computed once the blur
@@ -206,6 +236,9 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
 
     const float2 clamped = clamp(coord, float2(0.0, 0.0), maxCoord);
     const float2 contentUv = coord / resolution;
+
+    // The dispersion runs away from the pane's centre, which is where the eye is.
+    const float2 eyeCentre = resolution * 0.5;
 
     // The picture is a finite rectangle in space, and the reference blurs its
     // boundary by the same amount it blurs the picture -- three sigma on either
@@ -260,7 +293,7 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     // Where the pane is nearly clear the picture stays sharp and the dispersion
     // is the thing that gives the glass away; where it is thick the dispersion
     // disappears into the scatter anyway.
-    const float2 radial = normalize(clamped - eye + float2(1e-4, 0.0));
+    const float2 radial = normalize(clamped - eyeCentre + float2(1e-4, 0.0));
     const float3 sharp = SampleDispersed(clamped, radial, dispersionPx * tilt);
     float3 colour = lerp(sharp, scattered, saturate(radius / 32.0)) * atten;
 

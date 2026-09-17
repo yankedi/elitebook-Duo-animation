@@ -24,7 +24,11 @@ namespace dragonfly {
 
 class OverlayWindow {
 public:
-    bool Create(const std::wstring& title);
+    // `layered` adds WS_EX_LAYERED, which is what makes DWM skip the window in
+    // hit testing -- without it every click on the desktop lands on the pane.
+    // It can be turned off to check whether a layered full-screen window is
+    // what makes something underneath flicker.
+    bool Create(const std::wstring& title, bool layered = true);
     void Destroy();
 
     void Show(bool visible);

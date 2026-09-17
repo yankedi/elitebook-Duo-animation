@@ -94,6 +94,18 @@ struct FoldEffectOptions {
     // the reference's own (0, 0.65, 1.6).
     float eyeDistanceHeights = 2.7f;
     float eyeHeightHeights = 0.55f;
+
+    // How far the picture hangs behind the pane's plane, as a fraction of the
+    // eye distance.  Zero puts it back on the plane, where the picture swells
+    // as the lid closes; larger values hold it stiller and show more of the
+    // void around it.  --depth=N overrides.
+    float screenDepthRatio = 0.45f;
+
+    // Whether the pane window is layered.  Layering is what makes the window
+    // click-through; --no-layered-overlay turns it off to test whether a layered
+    // full-screen window is what makes something underneath flicker.
+    bool layeredOverlay = true;
+
     // Overrides the preset's parallax (0 = glued to the panel, 1 = anchored).
     float parallaxOverride = -1.0f;
 

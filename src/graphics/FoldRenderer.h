@@ -82,7 +82,18 @@ struct FoldEffectParameters {
     // Width of the fade where the sample runs past the content plane, in pixels.
     // Without it the clamped border smears; with it the edge reads as the pane
     // catching light.
-    float edgeFadePx = 60.0f;
+    float edgeFadePx = 2.0f;
+
+    // How far the picture hangs behind the pane's anchored plane, in pixels.
+    //
+    // This is what decides whether the picture holds still.  Left on the
+    // anchored plane (0) the pane is a window that comes closer as the lid
+    // shuts, so the picture swells and its top is cut off -- "stretching
+    // upward".  Pushed back it subtends a fixed angle from the eye, so turning
+    // the pane neither grows nor shrinks it: the pane just shows more of the
+    // space around it, which is what a sheet of glass in front of a screen
+    // does.  The caller sets it as a fraction of the eye distance.
+    float screenDepthPx = 1300.0f;
 
     // A laptop lid hinges on the bottom edge of the panel.
     bool hingeFromTop = false;
