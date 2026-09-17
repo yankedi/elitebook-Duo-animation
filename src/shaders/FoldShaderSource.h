@@ -83,9 +83,12 @@ cbuffer EffectConstants : register(b0)
                                 // 1 = fully anchored in the room
     float  eyeUpPx;             // eye height above the hinge, along the plane
     float  edgeFade;            // minimum feather at the picture's edge, pixels
-    float  screenDepthPx;       // how far behind the pane's anchored plane the
-                                // picture hangs; 0 puts it back on that plane,
-                                // which is what made it swell as the lid closed
+    float  screenDepthPx;       // how far in front of the pane the picture's
+                                // plane hangs; the pane sweeps over it
+
+    float  pictureScale;        // 1 = the picture fills the pane at the anchor;
+                                // less leaves space around it
+    float3 padding;
 };
 
 Texture2D    contentTexture : register(t0);
@@ -164,44 +167,49 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     const float side = (hingeFromTop > 0.5) ? 1.0 : -1.0;
     const float gap = d * sin(delta);
 
-    // ---- the picture --------------------------------------------------------
-    // The picture is held in the *eye's* frame: a fixed angular rectangle, sized
-    // to exactly what the pane subtends when it is at the anchor.  So turning
-    // the pane changes nothing about the picture itself -- it neither swells nor
-    // slides -- and what moves is the pane, which reveals more of the space
-    // around the picture as it swings towards the eye.
-    //
-    // The earlier construction intersected the ray with the anchored *plane*.
-    // That is a window, and a window coming closer magnifies what is behind it:
-    // the picture grew as the lid closed, which reads as being stretched upward
-    // and tipped away.  Holding it at a fixed angle is what "the picture does
-    // not move, only the glass does" actually means.
-    //
-    // Both sub-planes are done in (distance-along-the-plane, distance-from-the-
-    // eye) coordinates: the angle off the eye's axis is atan2 of the in-plane
-    // offset over the forward distance, and the picture's own span is the same
-    // angle measured at the anchor.
-    const float forward = eyeDistancePx - gap;   // distance from the eye to the pane
+    const float forward = eyeDistancePx - gap;   // distance from eye to the pane
     if (forward <= 1.0)
     {
         return float4(0.0, 0.0, 0.0, 1.0);
     }
 
-    // Vertical: 0 at the hinge, up to resolution.y at the far edge.
-    const float angleUp = atan2(d * cos(delta) - eyeUpPx, forward);
-    const float anchorLow = atan2(-eyeUpPx, eyeDistancePx);
-    const float anchorHigh = atan2(resolution.y - eyeUpPx, eyeDistancePx);
-    const float pictureV = (angleUp - anchorLow) / (anchorHigh - anchorLow);
+    // ---- the picture --------------------------------------------------------
+    // The picture hangs on a plane *in front of* the pane -- between the eye and
+    // the glass -- parallel to the anchored plane.  A ray from the eye through a
+    // pane pixel meets that plane before it reaches the pane, and because the
+    // plane is tilted relative to the eye's axis the mapping is a real
+    // perspective projection: the picture reads as a screen standing in space,
+    // with the near edge larger than the far one, instead of a rectangle pasted
+    // flat on the glass.
+    //
+    // The plane is fixed in space and the eye is fixed, so the picture does not
+    // move in the eye's view; what moves is the pane, which sweeps over it and
+    // reveals more of the space around it.  Having the plane *behind* the pane
+    // was the earlier mistake: then the pane is a window that comes closer as
+    // the lid shuts, and a window coming closer magnifies what is behind it.
+    const float planeDepth = min(screenDepthPx, eyeDistancePx * 0.9);
+    const float toPlane = (eyeDistancePx - planeDepth) / forward;
 
-    // Horizontal, the same way about the pane's centre line.
-    const float halfWidth = resolution.x * 0.5;
-    const float angleAcross = atan2(fragCoord.x - halfWidth, forward);
-    const float anchorLeft = atan2(-halfWidth, eyeDistancePx);
-    const float anchorRight = atan2(halfWidth, eyeDistancePx);
-    const float pictureU = (angleAcross - anchorLeft) / (anchorRight - anchorLeft);
+    const float2 eyeAt = float2(resolution.x * 0.5, eyeUpPx);  // (across, up)
+    const float2 paneAt = float2(fragCoord.x, d * cos(delta));
+    const float2 onPlane = eyeAt + (paneAt - eyeAt) * toPlane;
 
-    // 0 at the picture's top, 1 at its bottom, matching the desktop texture.
-    const float2 pictureUv = float2(pictureU, 1.0 - pictureV);
+    // The picture's own rectangle, in the same space: where the pane's corners
+    // land on that plane when the pane is at the anchor.  That is what makes the
+    // mapping the identity at delta = 0, so starting the effect never pops.
+    const float atAnchor = (eyeDistancePx - planeDepth) / eyeDistancePx;
+    const float2 planeLow = eyeAt + (float2(0.0, 0.0) - eyeAt) * atAnchor;
+    const float2 planeHigh =
+        eyeAt + (float2(resolution.x, resolution.y) - eyeAt) * atAnchor;
+
+    // Picture coordinates: 0..1 across its own rectangle, top down.  A scale
+    // below 1 keeps the picture smaller than the glass, so it hangs in space
+    // with room around it instead of being cut off by the pane's edge.
+    const float2 fullUv =
+        float2((onPlane.x - planeLow.x) / (planeHigh.x - planeLow.x),
+               1.0 - (onPlane.y - planeLow.y) / (planeHigh.y - planeLow.y));
+    const float scale = clamp(pictureScale, 0.2, 1.0);
+    const float2 pictureUv = (fullUv - 0.5) / scale + 0.5;
 
     // parallax = 0 glues the picture to the pane; 1 leaves it hanging in place.
     const float2 screenUv = lerp(uv, pictureUv, saturate(parallax));

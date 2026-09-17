@@ -93,6 +93,11 @@ struct FoldEffectParameters {
     // the pane neither grows nor shrinks it: the pane just shows more of the
     // space around it, which is what a sheet of glass in front of a screen
     // does.  The caller sets it as a fraction of the eye distance.
+    float pictureScale = 0.85f;
+
+    // How far in front of the pane the picture's plane hangs, in pixels.  See
+    // FoldEffectParameters::screenDepthPx; the caller sets it as a fraction of
+    // the eye distance.
     float screenDepthPx = 1300.0f;
 
     // A laptop lid hinges on the bottom edge of the panel.

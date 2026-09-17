@@ -230,6 +230,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // The picture hangs behind the pane's plane; see FoldEffectParameters.
     parameters.screenDepthPx =
         static_cast<float>(options.screenDepthRatio * parameters.eyeDistancePx);
+    parameters.pictureScale = options.pictureScale;
 
     switch (options.glassPreset) {
     case FoldEffectOptions::GlassPreset::Reference:

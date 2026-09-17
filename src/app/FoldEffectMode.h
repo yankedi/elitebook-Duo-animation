@@ -101,6 +101,10 @@ struct FoldEffectOptions {
     // void around it.  --depth=N overrides.
     float screenDepthRatio = 0.45f;
 
+    // The picture's size relative to the glass.  1 fills the pane at the anchor;
+    // less hangs it in space with a margin around it.  --picture=N overrides.
+    float pictureScale = 0.85f;
+
     // Whether the pane window is layered.  Layering is what makes the window
     // click-through; --no-layered-overlay turns it off to test whether a layered
     // full-screen window is what makes something underneath flicker.

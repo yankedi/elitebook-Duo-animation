@@ -85,6 +85,7 @@ struct Options {
     double parallaxOverride = -1.0;
     double eyeDistanceMm = 0.0;
     double screenDepthRatio = 0.45;
+    double pictureScale = 0.85;
     bool layeredOverlay = true;
     bool help = false;
 };
@@ -273,6 +274,10 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             }
         } else if (argument.rfind(L"--parallax=", 0) == 0) {
             if (!ParseNumberArgument(argument, 11, options.parallaxOverride)) {
+                return false;
+            }
+        } else if (argument.rfind(L"--picture=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 10, options.pictureScale)) {
                 return false;
             }
         } else if (argument.rfind(L"--depth=", 0) == 0) {
@@ -919,6 +924,7 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.parallaxOverride = static_cast<float>(options.parallaxOverride);
         foldOptions.eyeDistanceMm = static_cast<float>(options.eyeDistanceMm);
         foldOptions.screenDepthRatio = static_cast<float>(options.screenDepthRatio);
+        foldOptions.pictureScale = static_cast<float>(options.pictureScale);
         foldOptions.layeredOverlay = options.layeredOverlay;
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
