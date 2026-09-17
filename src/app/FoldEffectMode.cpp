@@ -6,6 +6,7 @@
 #include "DisplaySafetyGate.h"
 
 #include "../capture/DesktopCapture.h"
+#include "../graphics/CursorRenderer.h"
 #include "../graphics/D3DDevice.h"
 #include "../graphics/FoldRenderer.h"
 #include "../graphics/FrameDump.h"
@@ -312,6 +313,16 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         SetThreadExecutionState(flags);
     };
 
+    // ---- cursor ------------------------------------------------------------
+    // The captured desktop has no pointer in it, so it is drawn back in before
+    // the pane is rendered; otherwise the effect leaves a sharp cursor floating
+    // in front of the glass.
+    CursorRenderer cursor;
+    if (!cursor.Create(device.Device())) {
+        terminal.Write(std::string("WARNING: the cursor will not be part of the "
+                                   "effect: ") + cursor.LastError() + "\n");
+    }
+
     // ---- live capture ------------------------------------------------------
     // Ask DWM to keep the overlay out of screen capture.  When that works the
     // duplication can be read *every frame*, so the picture stays live: video
@@ -440,6 +451,18 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     bool lastDisplayOn = overlay.DisplayOn();
     unsigned lastInputMask = 0;
 
+    // Puts the pointer into the content texture.  The duplication reports it
+    // next to the frame rather than inside it, so it has to be drawn in before
+    // the mip chain is rebuilt and the pane is rendered.
+    auto compositePointer = [&]() {
+        const DesktopPointer& pointer = capture.Pointer();
+        if (!cursor.Ready() || !pointer.visible) {
+            return;
+        }
+        cursor.UpdateShape(pointer);
+        cursor.Draw(device.Context(), content.Get(), pointer);
+    };
+
     // Grabs the desktop into the content texture.
     //
     // A timeout is NOT a failure here.  AcquireNextFrame only hands back a frame
@@ -466,6 +489,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                 hasContent = true;
                 contentDirty = true;
                 lastCaptureSeconds = SteadySeconds();
+                compositePointer();
                 return true;
             }
             if (!capture.Healthy()) {
@@ -491,6 +515,20 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         std::snprintf(buffer, sizeof(buffer), "\n  [env] %-22s t %7.2f  hinge %6.1f\n",
                       what, SteadySeconds(), hingeDeg);
         terminal.Write(buffer);
+    };
+
+    // The system cursor is drawn above every window, so it would sit sharp in
+    // front of the pane; while the effect is on it is hidden and the pointer is
+    // part of the picture instead.  Shown once at startup as well, in case a
+    // previous run died while it was hidden.
+    ShowCursor(TRUE);
+    bool systemCursorHidden = false;
+    auto showSystemCursor = [&](bool show) {
+        if (show != systemCursorHidden) {
+            return;
+        }
+        systemCursorHidden = !show;
+        ShowCursor(show ? TRUE : FALSE);
     };
 
     auto nextTick = std::chrono::steady_clock::now();
@@ -754,6 +792,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             // and keeping it is what lets the effect come back the instant the
             // lid is open instead of after a fresh capture.
             overlay.Show(false);
+            showSystemCursor(true);
             if (lastEffectWanted) {
                 note("effect off", hingeAngle);
             }
@@ -772,6 +811,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                     hasContent = true;
                     contentDirty = true;
                     lastCaptureSeconds = SteadySeconds();
+                    compositePointer();
                 }
             }
         } else if (!lastEffectWanted) {
@@ -799,6 +839,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // stale texture is worse than no effect at all.
         if (effectWanted && hasContent) {
             overlay.Show(true);
+            showSystemCursor(false);  // the pointer is part of the picture now
             // Another topmost window can steal the front slot; re-assert it
             // periodically so the effect cannot end up hidden behind something.
             if ((++loopCount % 120) == 0) {
@@ -828,6 +869,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                 hasContent = true;
                 contentDirty = true;
                 lastCaptureSeconds = SteadySeconds();
+                compositePointer();
             }
 
             // The blur samples the prefiltered chain, so it is rebuilt whenever
@@ -895,6 +937,8 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // ---- shutdown ---------------------------------------------------------
     // Hand the display and system idle timeouts back to Windows.
     SetThreadExecutionState(ES_CONTINUOUS);
+    showSystemCursor(true);
+    cursor.Destroy();
     overlay.Show(false);
     capture.Stop();
     renderer.Destroy();

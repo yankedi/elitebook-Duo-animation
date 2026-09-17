@@ -523,14 +523,34 @@ shader 每帧都会采样自己上一帧的输出 —— 画面会逐帧自我�
   `capture live (overlay excluded from capture)` / `capture snapshot per fold (...)`
 - 副作用：你自己的截图/录屏里也不会出现效果层（它本就是"玻璃"，不是桌面内容）
 
-### 交互透明
+### 光标（在画面里）
 
-overlay 是 `WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`：
-鼠标点击**穿透**到下面的真实窗口，键盘焦点不会被抢。加上实时渲染，
-操作在效果里也能立刻看到，所以效果期间电脑是**可正常使用**的。
+抓来的桌面**本来没有光标** —— 光标由显示控制器在**独立的平面上**合成，不在桌面图里。
+所以只采样桌面帧的效果会让一个**清晰、不动的光标浮在玻璃前面**，这正是"出戏"的来源。
 
-已知限制：系统光标由 Windows 画在最上层，**不会**跟着画面一起模糊/形变 ——
-任何用户态 overlay 都无法隐藏它（把它画进内容里只会出现两个光标）。
+现在两条一起做：
+
+1. **把光标画进内容**：duplication 会在帧旁边报告光标的位置与形状
+   （`DXGI_OUTDUPL_FRAME_INFO.PointerPosition` + `GetFramePointerShape`），
+   在渲染玻璃之前先把它合成进内容纹理 —— 于是光标跟着一起模糊、形变。
+   彩色形状直接拷贝；单色形状（文本 I 形光标）在 CPU 上展开两级位平面。
+2. **效果期间隐藏系统光标**（`ShowCursor(FALSE)`），否则会出现两个光标。
+   程序启动时会先 `ShowCursor(TRUE)` 作为保险（万一上次运行的进程被强杀），
+   退出路径全部恢复。
+
+### 点击穿透（`WS_EX_TRANSPARENT` 是**不够的**）
+
+一个常见的误解：`WS_EX_TRANSPARENT` 只影响**绘制顺序**（不绘制在兄弟窗口之上），
+它**不参与命中测试**。只加它的覆盖窗口会**吞掉全屏所有点击**。
+真正的穿透要三件事一起：
+
+| 做法 | 作用 |
+|---|---|
+| `WS_EX_LAYERED` | 分层窗口才被 DWM 的命中测试跳过 |
+| `WM_NCHITTEST` → `HTTRANSPARENT` | 文档指定的"继续往下找窗口" |
+| `WM_MOUSEACTIVATE` → `MA_NOACTIVATE` | 永不激活、不抢焦点 |
+
+交换链用 `DXGI_SWAP_EFFECT_DISCARD`（bitblt 模型），分层窗口下可正常呈现。
 
 `delta > 0` 只是必要条件，**不是**充分条件。真正决定 overlay 能否出现在屏幕上的是一道安全门，
 同样来自 lid-plane 的策略（`DisplaySafetyGate`：*fail closed, then wait for a stable display

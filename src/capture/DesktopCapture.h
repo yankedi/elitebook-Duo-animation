@@ -17,8 +17,25 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace dragonfly {
+
+// The pointer the duplication reports alongside a frame.
+//
+// The desktop image itself never contains the cursor -- it lives on its own
+// plane and is composited by the display controller -- so an effect that only
+// samples the captured frame has no cursor in it at all.  The shape and the
+// position come out of the duplication separately, and this is what carries
+// them to the renderer that draws them in.
+struct DesktopPointer {
+    bool visible = false;
+    int32_t x = 0;  // top-left of the shape in desktop pixels
+    int32_t y = 0;
+    DXGI_OUTDUPL_POINTER_SHAPE_INFO shape{};
+    std::vector<uint8_t> pixels;  // raw shape bytes, as the API handed them over
+    uint64_t version = 0;         // bumped whenever the shape changes
+};
 
 class DesktopCapture {
 public:
@@ -58,6 +75,10 @@ public:
     // be revived -- only replaced.
     bool Healthy() const { return m_duplication != nullptr && !m_lost; }
 
+    // The pointer that came with the last acquired frame.  Valid while the
+    // duplication is healthy; the shape is only refreshed when it changes.
+    const DesktopPointer& Pointer() const { return m_pointer; }
+
     // Replaces a duplication that returned DXGI_ERROR_ACCESS_LOST, or brings
     // one up for the first time.  Does nothing while the existing one is still
     // healthy.
@@ -69,6 +90,7 @@ private:
 
     bool m_acquired = false;
     bool m_lost = false;
+    DesktopPointer m_pointer;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;

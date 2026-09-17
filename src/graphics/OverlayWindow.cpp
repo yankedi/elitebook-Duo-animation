@@ -51,7 +51,14 @@ bool OverlayWindow::Create(const std::wstring& title) {
 
     m_hwnd = CreateWindowExW(
         // Topmost, click-through, never steals focus or shows in the taskbar.
-        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+        //
+        // WS_EX_LAYERED is what makes the click-through real: WS_EX_TRANSPARENT
+        // only affects painting order, it does not keep the window out of hit
+        // testing, so without the layered flag this window swallows every click
+        // on the desktop.  WM_NCHITTEST below answers HTTRANSPARENT as well, so
+        // the two agree.
+        WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE |
+            WS_EX_TOOLWINDOW,
         kWindowClass, title.c_str(), WS_POPUP,
         0, 0, static_cast<int>(m_width), static_cast<int>(m_height),
         nullptr, nullptr, instance, this);
@@ -59,6 +66,10 @@ bool OverlayWindow::Create(const std::wstring& title) {
     if (!m_hwnd) {
         return false;
     }
+
+    // Constant alpha 255: fully opaque, but a layered window.  Hit testing skips
+    // it and clicks land on whatever is underneath.
+    SetLayeredWindowAttributes(m_hwnd, 0, 255, LWA_ALPHA);
 
     // Created hidden; the effect shows it only while it has something to draw.
     m_shown = false;
@@ -203,6 +214,19 @@ LRESULT OverlayWindow::HandleMessage(HWND window, UINT message, WPARAM wParam,
 
     case WM_ERASEBKGND:
         return 1;  // D3D paints every frame
+
+    case WM_NCHITTEST:
+        // Click-through, the documented way: the system keeps looking for a
+        // window that will take the hit, so the desktop underneath stays usable
+        // while the pane is on screen.
+        return HTTRANSPARENT;
+
+    case WM_MOUSEACTIVATE:
+        return MA_NOACTIVATE;
+
+    case WM_SETCURSOR:
+        // Never take the cursor over: the window below decides its shape.
+        return FALSE;
 
     case WM_POWERBROADCAST:
         switch (wParam) {

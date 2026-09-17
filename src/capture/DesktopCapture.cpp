@@ -119,6 +119,26 @@ bool DesktopCapture::AcquireFrame(uint32_t timeoutMs) {
         return false;
     }
 
+    // The pointer travels next to the frame, not inside it.
+    m_pointer.visible = info.PointerPosition.Visible != FALSE;
+    // Position is the hot spot; the shape is placed by its top-left corner.
+    m_pointer.x = info.PointerPosition.Position.x - m_pointer.shape.HotSpot.x;
+    m_pointer.y = info.PointerPosition.Position.y - m_pointer.shape.HotSpot.y;
+    if (info.PointerShapeBufferSize > 0) {
+        m_pointer.pixels.resize(info.PointerShapeBufferSize);
+        UINT required = 0;
+        DXGI_OUTDUPL_POINTER_SHAPE_INFO shape{};
+        if (SUCCEEDED(m_duplication->GetFramePointerShape(
+                info.PointerShapeBufferSize, m_pointer.pixels.data(), &required,
+                &shape))) {
+            m_pointer.shape = shape;
+            m_pointer.pixels.resize(required);
+            ++m_pointer.version;
+        } else {
+            m_pointer.pixels.clear();
+        }
+    }
+
     m_acquired = true;
     return true;
 }

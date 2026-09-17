@@ -119,6 +119,7 @@ add_executable(DragonflySensorDiag
     capture/DesktopCapture.cpp
     config/ConfigLoader.cpp
     graphics/D3DDevice.cpp
+    graphics/CursorRenderer.cpp
     graphics/DebugFoldWindow.cpp
     graphics/FoldRenderer.cpp
     graphics/FrameDump.cpp
