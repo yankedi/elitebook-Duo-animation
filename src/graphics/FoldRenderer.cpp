@@ -171,9 +171,11 @@ void FoldRenderer::Resize(uint32_t width, uint32_t height) {
 // ==========================================================================
 float FoldRenderer::ClampDelta(float angleDeltaDeg,
                                const FoldEffectParameters& parameters) {
-    // A negative delta means the lid is above the activation angle: the desktop
-    // is simply being used and the shader must pass it through untouched.
-    return std::clamp(angleDeltaDeg, 0.0f, parameters.maxDeltaDegrees);
+    // The reference clamps to [-0.65, 1.25] rad: a pane that swings one way
+    // (closing) and the other (opening) are both rendered, and past those the
+    // projection has run away from the picture anyway.
+    (void)parameters;
+    return std::clamp(angleDeltaDeg, -37.0f, 72.0f);
 }
 
 // ==========================================================================

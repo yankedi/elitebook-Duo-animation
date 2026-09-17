@@ -84,15 +84,16 @@ struct FoldEffectOptions {
     float edgeOverride = -1.0f;
 
     // How far the eye is from the picture, in millimetres.  Zero or less means
-    // "use the reference's screen-height ratio" below, which is what its look is
-    // calibrated around.  Set it to convert a real viewing distance instead:
-    // closer means the picture stays put more strongly and the void shows more.
-    float eyeDistanceMm = 0.0f;
+    // "use eyeDistanceHeights" below.  This is the knob that decides how much
+    // the picture slides across the pane as the lid moves: it is a real viewing
+    // distance, because a projection is only stationary for a viewer standing
+    // where the shader thinks they are.
+    float eyeDistanceMm = 450.0f;
 
-    // The reference's eye, in screen heights: (0, 0.65, 1.6).  Resolution
-    // independent, and the numbers its look was tuned with.
-    float eyeDistanceHeights = 1.6f;
-    float eyeHeightHeights = 0.65f;
+    // The same distance in screen heights, used when eyeDistanceMm is unset:
+    // the reference's own (0, 0.65, 1.6).
+    float eyeDistanceHeights = 2.7f;
+    float eyeHeightHeights = 0.55f;
     // Overrides the preset's parallax (0 = glued to the panel, 1 = anchored).
     float parallaxOverride = -1.0f;
 

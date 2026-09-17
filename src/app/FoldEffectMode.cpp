@@ -133,15 +133,22 @@ int PollConsoleKey() {
 constexpr double kLidClosedDegrees = 8.0;
 constexpr double kLidOpenDegrees = 25.0;
 
+// Anchor motion filter, taken from the reference: a dead band measured from the
+// last accepted angle (small shakes are ignored, slow movement still
+// accumulates), a pause before the anchor moves, and an ease rather than a jump.
+constexpr double kAnchorJitterTolerance = 0.25;  // degrees
+constexpr double kAnchorDelaySeconds = 0.2;      // stillness before re-anchoring
+constexpr double kAnchorEaseSeconds = 0.12;      // time constant of the ease
+
 std::string FormatLine(const char* phase, double hingeAngle, double angleDelta,
-                       double activationAngle, const char* gateText, int lidMode,
+                       double anchorAngle, const char* gateText, int lidMode,
                        bool overlayVisible, bool hasContent, uint64_t frames,
                        uint64_t captures) {
     char buffer[300];
     std::snprintf(buffer, sizeof(buffer),
-                  "%s  hinge %6.1f   delta %6.1f (act %.0f)   %-28s lid %s   "
+                  "%s  hinge %6.1f   delta %6.1f   anchor %6.1f   %-24s lid %s   "
                   "overlay %s   content %-3s   frames %llu   grabs %llu",
-                  phase, hingeAngle, angleDelta, activationAngle, gateText,
+                  phase, hingeAngle, angleDelta, anchorAngle, gateText,
                   lidMode < 0 ? "--" : std::to_string(lidMode).c_str(),
                   overlayVisible ? "ON " : "off", hasContent ? "yes" : "NO",
                   static_cast<unsigned long long>(frames),
@@ -388,6 +395,13 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     OrientationTracker tracker;
     tracker.Configure(0.075);
 
+    // The anchor the picture is held at, and the motion filter that keeps it
+    // there.  See the loop below; the numbers are the reference's.
+    double anchorAngle = 0.0;
+    double lastAcceptedHinge = 0.0;
+    double stableSeconds = 0.0;
+    bool anchorValid = false;
+
     bool pastFlat = false;
     // Latched, because the hinge estimate is driven by acos() of the panel
     // normal: near the fully closed pose that value sits on the singularity and
@@ -516,14 +530,37 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         const double hingeAngle =
             pastFlat ? (180.0 + tiltDegrees) : (180.0 - tiltDegrees);
 
-        // ---- the effect belongs to the act of closing ----------------------
-        // Keyed to how far BELOW the activation angle the lid has come, not to
-        // the absolute hinge angle.  At or above the activation angle a laptop
-        // is simply being used and the desktop must stay untouched; the effect
-        // is reserved for the act of closing, where it produces the illusion
-        // that the picture holds its angle while the panel tilts around it.
-        const double angleDelta =
-            static_cast<double>(options.activationAngleDeg) - hingeAngle;
+        // ---- the anchor: where the picture stays ----------------------------
+        // Not a fixed angle.  The picture is anchored to the pose the lid was in
+        // when it stopped moving, because that is the pose the user was looking
+        // at: close the lid from 120 degrees and the desktop stays at 120
+        // degrees, blurring, while the panel swings away from it.  Once the lid
+        // holds still again the anchor eases over to the new pose, which is what
+        // makes the effect end by itself instead of sitting there frozen.
+        //
+        // This is lid-plane's AutoAnchor, and its numbers: a dead band measured
+        // from the last accepted angle, and an ease rather than a jump.
+        if (!anchorValid) {
+            anchorAngle = hingeAngle;
+            lastAcceptedHinge = hingeAngle;
+            anchorValid = true;
+        }
+
+        if (std::abs(hingeAngle - lastAcceptedHinge) > kAnchorJitterTolerance) {
+            lastAcceptedHinge = hingeAngle;
+            stableSeconds = 0.0;
+        } else {
+            stableSeconds += dt;
+        }
+
+        if (stableSeconds >= kAnchorDelaySeconds && !lidClosedLatch) {
+            const double ease = 1.0 - std::exp(-dt / kAnchorEaseSeconds);
+            anchorAngle += (hingeAngle - anchorAngle) * ease;
+        }
+
+        // Signed: closing swings the pane one way and opening the other, and
+        // both are rendered.
+        const double angleDelta = anchorAngle - hingeAngle;
 
         // ---- environment safety gate ----------------------------------------
         // Strategy from lid-plane (jh3y/lid-plane, GPL-3.0-or-later): while the
@@ -631,12 +668,17 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         // threshold is asymmetric on purpose: right at the activation angle the
         // estimate wanders by about a degree, and a single threshold makes the
         // overlay pop on and off several times while the lid settles.
-        const double deltaThreshold = lastEffectWanted ? -0.3 : 0.6;
+        // The threshold is asymmetric on purpose: right at the anchor the
+        // estimate wanders by about a degree, and a single threshold makes the
+        // overlay pop on and off while the lid settles.  Going on takes a clear
+        // delta, going off takes the lid actually being back at the anchor.
+        // Signed, so closing and opening both show the pane moving.
         const bool preview = options.previewDeltaDegrees > 0.0;
+        const double deltaThreshold = lastEffectWanted ? -0.3 : 0.6;
         const bool effectWanted =
             ready && tracker.Valid() &&
             (preview ? true
-                     : (!pastFlat && angleDelta > deltaThreshold));
+                     : (!pastFlat && std::abs(angleDelta) > deltaThreshold));
         const double renderedDelta =
             preview ? options.previewDeltaDegrees : angleDelta;
 
@@ -788,7 +830,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             std::string line =
                 "\r" + FormatLine(preview ? "PREV " : (effectWanted ? "FOLD " : "idle "),
                                   hingeAngle, renderedDelta,
-                                  options.activationAngleDeg,
+                                  anchorAngle,
                                   DisplaySafetyGate::Text(safety.Current()),
                                   lidMode, overlayVisible, hasContent,
                                   renderedFrames, captureCount);

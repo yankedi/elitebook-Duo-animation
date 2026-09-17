@@ -138,10 +138,11 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
 {
     float4 direct = contentTexture.Sample(contentSampler, uv);
 
-    // Above the activation angle the desktop is simply being used and must be
-    // left alone.
-    const float delta = clamp(angleDelta, 0.0, 1.5707963);
-    if (resolution.x <= 1.0 || resolution.y <= 1.0 || delta < 1e-4)
+    // Past the activation angle the desktop is simply being used and must be
+    // left alone.  The delta is signed: closing swings the pane one way and
+    // opening swings it the other, and the reference renders both.
+    const float delta = clamp(angleDelta, -0.65, 1.25);
+    if (resolution.x <= 1.0 || resolution.y <= 1.0 || abs(delta) < 1e-4)
     {
         return direct;
     }
@@ -185,7 +186,7 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     // with sin(delta) and with distance from the hinge, so the far edge is the
     // hazy end and the hinge stays crisp.  The display height normalises it, so
     // the look does not change with resolution.
-    const float tilt = sin(delta);
+    const float tilt = abs(sin(delta));
     const float radius = blurStrength
                        * smoothstep(0.08, 1.0, height)
                        * tilt

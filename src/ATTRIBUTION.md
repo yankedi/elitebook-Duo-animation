@@ -41,6 +41,13 @@
    - Windows 侧实现完全不同：`RegisterPowerSettingNotification` +
      `GUID_CONSOLE_DISPLAY_STATE` / `GUID_LIDSWITCH_STATE_CHANGE`、`WM_DISPLAYCHANGE`、
      `IDXGIOutputDuplication` 的失效检测；`DisplaySafetyGate` 为纯逻辑类并带 `--selftest` 用例。
+10. **AutoAnchor：锚点是"停止移动时的姿态"，不是固定角度**（来源：`lid-plane` 的
+   `AutoAnchor` / `LidMotionFilter` / `MotionPolicy`）
+   - 画面锚定在**盖子静止时所在的姿态**；从该姿态算起的角度差驱动模糊与投影；
+   - 死区从"最后一个被接受的角度"测量（小抖动忽略、缓慢移动仍累积）；
+   - 静止 0.2 s 后锚点**缓动**到当前角度（时间常数 0.12 s），效果因此会自行结束；
+   - 换言之：从 120° 合到 100°，画面留在 120°，只是变模糊。
+   - 眼位必须是**真实观察距离**（默认 450 mm，经 EDID 换算），否则视差与真实不符，画面会"游"。
 8. **世界锚定窗口模型**（来源：`iphone-duo` 的 `screen-material.ts` 片元着色器）
    - 眼睛固定在**身体坐标系**（笔记本底座/房间），不随屏幕转动；
    - 内容是一个**不动的平面**；逐像素从眼睛发出射线，穿过**转动中的**屏幕点，
