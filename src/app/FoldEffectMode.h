@@ -118,6 +118,17 @@ struct FoldEffectOptions {
     // full-screen window is what makes something underneath flicker.
     bool layeredOverlay = true;
 
+    // Whether to ask DWM to keep the pane out of screen capture, which is what
+    // allows reading the desktop every frame.  --no-capture-exclusion turns it
+    // off and falls back to one snapshot per fold; it exists to test whether the
+    // exclusion is what upsets other windows' blur.
+    bool excludeFromCapture = true;
+
+    // Suppress the periodic status line.  Every write repaints the console, and
+    // an acrylic terminal re-blurs its backdrop on every repaint; --quiet leaves
+    // the console alone except for the transitions.
+    bool quiet = false;
+
     // Overrides the preset's parallax (0 = glued to the panel, 1 = anchored).
     float parallaxOverride = -1.0f;
 

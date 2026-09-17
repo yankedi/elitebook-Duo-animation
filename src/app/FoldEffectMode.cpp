@@ -334,7 +334,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // real desktop through a pane rather than at a photograph of it.  Without
     // it (pre-2004 Windows) reading the desktop would read our own output back,
     // and the effect has to freeze on one snapshot per fold instead.
-    const bool liveCapture = overlay.ExcludeFromCapture();
+    const bool liveCapture = options.excludeFromCapture && overlay.ExcludeFromCapture();
 
     terminal.Write(
         "\nFold effect armed.\n"
@@ -900,7 +900,10 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
         }
 
         // ---- status line --------------------------------------------------
-        if (sample.steadySeconds - lastReportSeconds >= 0.25) {
+        // Always available, but the console repaints on every write and an
+        // acrylic terminal re-blurs its backdrop on every repaint, so --quiet
+        // leaves it alone.
+        if (!options.quiet && sample.steadySeconds - lastReportSeconds >= 0.25) {
             lastReportSeconds = sample.steadySeconds;
             std::string line =
                 "\r" + FormatLine(preview ? "PREV " : (effectWanted ? "FOLD " : "idle "),
