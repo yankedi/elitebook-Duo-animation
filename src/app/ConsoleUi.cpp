@@ -381,9 +381,6 @@ std::string FormatStartupReport(const std::vector<ChannelInfo>& channels,
     out += Line("  --eye=MM        eye distance from the pane (default 450 mm)");
     out += Line("  --parallax=N    0 = picture glued to the panel, 1 = anchored in the room");
     out += Line("  --no-layered-overlay  drop WS_EX_LAYERED (breaks click-through; for testing)");
-    out += Line("  --no-capture-exclusion  do not exclude the pane from capture (snapshot mode)");
-    out += Line("  --quiet         stop drawing the status line (acrylic terminals re-blur on repaint)");
-    out += Line("  --fps=N         render rate while the effect is up (default 60)");
     out += Line("");
     out += Line("  Fold progress is a visual quantity; no physical angle is estimated.");
     out += Line("");

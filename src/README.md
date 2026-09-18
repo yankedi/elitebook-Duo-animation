@@ -504,28 +504,6 @@ return float4(mix(float3(0.02, 0.035, 0.05), color, mask), 1);   // 画面之外
 .\build\Release\DragonflySensorDiag.exe --fold-effect --glass=clear --glass-preview=55
 ```
 
-### 与其他亚克力/模糊窗口的兼容性
-
-**现象**：程序运行时，其他使用高斯模糊的界面（开启亚克力的 Windows Terminal、任务栏）会闪动。正在隔离中。
-
-**查证到的事实**：
-
-| 事实 | 来源 |
-|---|---|
-| `HTTRANSPARENT` **只在同一线程/进程内**传递；跨进程的点击穿透必须靠 `WS_EX_LAYERED` | MS 文档、Raymond Chen、StackOverflow 一致 |
-| 分层窗口会让 DWM 离开 MPO / 直接扫描输出路径，而 MPO 与 DWM 合成的互作用正是大量"桌面闪烁"报告的共同点 | 大量 MPO 相关报告（"Disabling Multi-Plane Overlay fixed all desktop flickering"） |
-| `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` 会改变 DWM 对该窗口的抓屏处理 | MS 文档 |
-| 亚克力表面在**每次重绘**时都会重新模糊背景 | 亚克力实现说明 |
-
-**点击穿透必须保留分层**，所以不能简单去掉 `WS_EX_LAYERED`。为此加了四个隔离开关（诊断用）：
-
-```powershell
---no-layered-overlay     # 去掉分层（会破坏点击穿透，仅用于定位）
---no-capture-exclusion   # 不用 WDA 排除（退回"每次开合抓一张快照"）
---quiet                  # 不再每 0.25 s 重画状态行
---fps=30                 # 降低效果渲染帧率
-```
-
 ### 实时渲染（live capture）
 
 效果**不是一张冻结的截图**：overlay 每帧读取桌面，所以你播放的视频会继续播、窗口会继续刷新、

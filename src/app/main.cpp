@@ -87,9 +87,6 @@ struct Options {
     double screenDepthRatio = 0.0;
     double pictureScale = 1.0;
     bool layeredOverlay = true;
-    bool excludeFromCapture = true;
-    bool quiet = false;
-    double effectRateHz = 60.0;
     bool help = false;
 };
 
@@ -150,11 +147,6 @@ const wchar_t* kHelp =
     L"  --parallax=N    0 = picture glued to the panel, 1 = anchored in the room\n"
     L"  --no-layered-overlay  drop WS_EX_LAYERED (breaks click-through; for\n"
     L"                  testing whether a layered window is what flickers)\n"
-    L"  --no-capture-exclusion  do not exclude the pane from capture (falls back\n"
-    L"                  to one snapshot per fold; tests the same question)\n"
-    L"  --quiet         stop drawing the status line (an acrylic terminal\n"
-    L"                  re-blurs its backdrop on every repaint)\n"
-    L"  --fps=N         render rate while the effect is up (default 60)\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -294,14 +286,6 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             }
         } else if (argument == L"--no-layered-overlay") {
             options.layeredOverlay = false;
-        } else if (argument == L"--no-capture-exclusion") {
-            options.excludeFromCapture = false;
-        } else if (argument == L"--quiet") {
-            options.quiet = true;
-        } else if (argument.rfind(L"--fps=", 0) == 0) {
-            if (!ParseNumberArgument(argument, 6, options.effectRateHz)) {
-                return false;
-            }
         } else if (argument.rfind(L"--eye=", 0) == 0) {
             if (!ParseNumberArgument(argument, 6, options.eyeDistanceMm)) {
                 return false;
@@ -942,9 +926,6 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.screenDepthRatio = static_cast<float>(options.screenDepthRatio);
         foldOptions.pictureScale = static_cast<float>(options.pictureScale);
         foldOptions.layeredOverlay = options.layeredOverlay;
-        foldOptions.excludeFromCapture = options.excludeFromCapture;
-        foldOptions.quiet = options.quiet;
-        foldOptions.rateHz = options.effectRateHz;
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();
