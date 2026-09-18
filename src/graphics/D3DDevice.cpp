@@ -28,6 +28,27 @@ bool D3DDevice::Create(HWND window, uint32_t width, uint32_t height) {
     m_width = width;
     m_height = height;
 
+    // Swap effect: the flip model is preferred, the bitblt model is the
+    // fallback.
+    //
+    // With the bitblt model (DISCARD) every Present copies the back buffer into
+    // the window's redirection surface, and that copy is what disturbs the
+    // composition of everything else on screen -- which is the flicker that
+    // other windows' acrylic backdrops show.  The flip model hands the buffer
+    // over instead of copying it, which Microsoft's own guidance is explicit
+    // about ("For best performance, use DXGI flip model").  Flip refuses a
+    // layered window, and the pane has to be layered to stay click-through, so
+    // the fallback is kept and the mode actually obtained is reported.
+    const DXGI_SWAP_EFFECT effects[] = {DXGI_SWAP_EFFECT_FLIP_DISCARD,
+                                        DXGI_SWAP_EFFECT_DISCARD};
+
+    const D3D_FEATURE_LEVEL levels[] = {
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0,
+    };
+
     DXGI_SWAP_CHAIN_DESC swapChainDesc{};
     swapChainDesc.BufferCount = 2;
     swapChainDesc.BufferDesc.Width = width;
@@ -40,27 +61,33 @@ bool D3DDevice::Create(HWND window, uint32_t width, uint32_t height) {
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
     swapChainDesc.Windowed = TRUE;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    const D3D_FEATURE_LEVEL levels[] = {
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-    };
+    swapChainDesc.SwapEffect = effects[0];
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     D3D_FEATURE_LEVEL obtained{};
-    HRESULT result = D3D11CreateDeviceAndSwapChain(
-        nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, levels,
-        static_cast<UINT>(std::size(levels)), D3D11_SDK_VERSION, &swapChainDesc,
-        &m_swapChain, &m_device, &obtained, &m_context);
+    HRESULT result = E_FAIL;
+    for (size_t index = 0; index < std::size(effects) && FAILED(result); ++index) {
+        swapChainDesc.SwapEffect = effects[index];
+        result = D3D11CreateDeviceAndSwapChain(
+            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, levels,
+            static_cast<UINT>(std::size(levels)), D3D11_SDK_VERSION, &swapChainDesc,
+            &m_swapChain, &m_device, &obtained, &m_context);
+        if (SUCCEEDED(result)) {
+            m_swapEffect = effects[index];
+        }
+    }
 
     if (FAILED(result)) {
-        // 11_1 requires Windows 8+; retry without it for safety.
+        // 11_1 requires Windows 8+; retry without it for safety, on the bitblt
+        // model that is known to work.
+        swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
         result = D3D11CreateDeviceAndSwapChain(
             nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, levels + 1,
             static_cast<UINT>(std::size(levels)) - 1, D3D11_SDK_VERSION,
             &swapChainDesc, &m_swapChain, &m_device, &obtained, &m_context);
+        if (SUCCEEDED(result)) {
+            m_swapEffect = DXGI_SWAP_EFFECT_DISCARD;
+        }
     }
     if (FAILED(result)) {
         return false;
