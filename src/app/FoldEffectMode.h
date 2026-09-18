@@ -129,16 +129,6 @@ struct FoldEffectOptions {
     // the console alone except for the transitions.
     bool quiet = false;
 
-    // How often the desktop may be read while the effect is up.
-    //
-    // Reading it is what keeps the picture live, but every AcquireNextFrame
-    // keeps DWM on its capture composition path, and that is the path where the
-    // optimisations which keep other windows' acrylic backdrops cached are
-    // unavailable -- which shows up as blurred surfaces flickering.  Rendering
-    // still runs at the full rate: only the content refreshes slower, and the
-    // warp and blur are recomputed every frame regardless.  0 reads every frame.
-    double captureRateHz = 15.0;
-
     // Overrides the preset's parallax (0 = glued to the panel, 1 = anchored).
     float parallaxOverride = -1.0f;
 
