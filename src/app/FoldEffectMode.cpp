@@ -375,7 +375,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   "  panel %.0f mm wide, eye %.0f px (%.2f screen heights), parallax %.2f\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
                   "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
-                  "  capture %s, display %s, reads %.0f/s, swap %s\n\n",
+                  "  capture %s, display %s, reads %.0f/s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
@@ -397,7 +397,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   liveCapture ? "live (overlay excluded from capture)"
                               : "snapshot per fold (no capture exclusion)",
                   options.keepDisplayAwake ? "kept awake" : "system default",
-                  options.captureRateHz, device.FlipModel() ? "flip" : "bitblt");
+                  options.captureRateHz);
     terminal.Write(setup);
 
     // ---- prime the first frame -------------------------------------------
@@ -459,9 +459,6 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     double lastRecoverySeconds = -1.0;
     double lastRefreshSeconds = 0.0;
     double lastLiveCaptureSeconds = 0.0;
-    // The angle last presented, so a frame is only presented when the picture
-    // actually moved.  A sentinel when nothing is on screen yet.
-    double lastPresentedDelta = 1.0e9;
     // When the content texture last received a real desktop frame.  A snapshot
     // that is much older than this stops counting as drawable.
     double lastCaptureSeconds = SteadySeconds();
@@ -829,8 +826,6 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             // lid is open instead of after a fresh capture.
             overlay.Show(false);
             showSystemCursor(true);
-            // Force the next frame on screen to be presented, whatever it is.
-            lastPresentedDelta = 1.0e9;
             if (lastEffectWanted) {
                 note("effect off", hingeAngle);
             }
@@ -916,26 +911,10 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
 
             // The blur samples the prefiltered chain, so it is rebuilt whenever
             // the content has been written since the last frame.
-            bool contentUpdated = false;
             if (contentDirty) {
                 renderer.UpdateContent(device.Context(), content.Get());
                 contentDirty = false;
-                contentUpdated = true;
             }
-
-            // ---- present only what changed --------------------------------
-            // Every Present re-invalidates the pane's area in the composition,
-            // and that churn is what other windows' blur reacts to.  When
-            // neither the picture (the angle) nor its content moved, there is
-            // nothing to show that is not already on screen, so nothing is
-            // presented at all: a lid held still then costs no composition work
-            // whatsoever.
-            const bool pictureMoved =
-                std::abs(renderedDelta - lastPresentedDelta) > 0.02;
-            if (!contentUpdated && !pictureMoved) {
-                // Nothing to draw; the swap chain keeps showing the last frame.
-            } else {
-            lastPresentedDelta = renderedDelta;
             device.BeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
             renderer.Render(device.Context(), content.Get(),
                             device.BackBuffer(),
@@ -956,7 +935,6 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
 
             device.Present(true);
             ++renderedFrames;
-            }
         }
 
         // ---- status line --------------------------------------------------

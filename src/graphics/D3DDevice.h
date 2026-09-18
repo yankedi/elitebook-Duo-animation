@@ -35,18 +35,12 @@ public:
     uint32_t Width() const { return m_width; }
     uint32_t Height() const { return m_height; }
 
-    // Which swap effect the chain actually got: the flip model is preferred, the
-    // bitblt model is what the pane falls back to when flip will not take a
-    // layered window.  Reported in the banner.
-    bool FlipModel() const { return m_swapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD; }
-
 private:
     bool CreateBackBuffer();
 
     Microsoft::WRL::ComPtr<ID3D11Device> m_device;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_context;
     Microsoft::WRL::ComPtr<IDXGISwapChain> m_swapChain;
-    DXGI_SWAP_EFFECT m_swapEffect = DXGI_SWAP_EFFECT_DISCARD;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_backBuffer;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> m_backBufferTexture;
 
