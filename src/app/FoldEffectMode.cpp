@@ -170,9 +170,6 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     }
     uint32_t width = overlay.Width();
     uint32_t height = overlay.Height();
-    // Emitted into this function; reassigned if the capture reports a new mode.
-    uint32_t contentWidth = 0;
-    uint32_t contentHeight = 0;
 
     // ---- D3D device -------------------------------------------------------
     D3DDevice device;
@@ -217,36 +214,23 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     // look is calibrated around that, so it is the default.  A real distance in
     // millimetres can be given instead; the panel's physical size comes from its
     // EDID, because the DPI Windows reports is the logical one.
-    // The geometry is worked out in *desktop* pixels, because that is what the
-    // captured content is in and what the pane is a viewport onto.
-    contentWidth = capture.Width();
-    contentHeight = capture.Height();
-
     const double panelWidthMm = PrimaryPanelWidthMm();
     const double panelHeightMm =
-        (panelWidthMm > 0.0) ? (panelWidthMm * static_cast<double>(contentHeight) /
-                                static_cast<double>(contentWidth))
+        (panelWidthMm > 0.0) ? (panelWidthMm * static_cast<double>(height) /
+                                static_cast<double>(width))
                              : 165.0;  // nominal 13.3" 16:9
     const double eyeHeights = (options.eyeDistanceMm > 0.0f)
                                   ? (options.eyeDistanceMm / panelHeightMm)
                                   : options.eyeDistanceHeights;
-    parameters.eyeDistancePx = static_cast<float>(eyeHeights * contentHeight);
-    parameters.eyeUpPx =
-        static_cast<float>(options.eyeHeightHeights * contentHeight);
+    parameters.eyeDistancePx = static_cast<float>(eyeHeights * height);
+    parameters.eyeUpPx = static_cast<float>(options.eyeHeightHeights * height);
     // A floor for the edge feather, so the picture's boundary is never razor
     // sharp even where the pane is clear; the blur adds its own width on top.
     parameters.edgeFadePx = 2.0f;
-    // The picture hangs on the pane's anchored plane when this is zero; see
-    // FoldEffectParameters::screenDepthPx.
+    // The picture hangs behind the pane's plane; see FoldEffectParameters.
     parameters.screenDepthPx =
         static_cast<float>(options.screenDepthRatio * parameters.eyeDistancePx);
     parameters.pictureScale = options.pictureScale;
-    // Where the pane sits on the desktop: it covers the work area, so the
-    // taskbar keeps its own backdrop and its acrylic stays cached.
-    parameters.windowWidth = static_cast<float>(width);
-    parameters.windowHeight = static_cast<float>(height);
-    parameters.originX = static_cast<float>(overlay.OriginX());
-    parameters.originY = static_cast<float>(overlay.OriginY());
 
     switch (options.glassPreset) {
     case FoldEffectOptions::GlassPreset::Reference:
@@ -293,12 +277,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     const UINT dpi = GetDpiForWindow(overlay.Handle());
 
     FoldRenderer renderer;
-    // The renderer is fed the *content* size, not the pane's: the shader works
-    // in desktop pixels so that the picture's geometry matches the captured
-    // frame, and the pane is only a viewport onto it.
-    contentWidth = capture.Width();
-    contentHeight = capture.Height();
-    if (!renderer.Create(device.Device(), contentWidth, contentHeight)) {
+    if (!renderer.Create(device.Device(), width, height)) {
         terminal.Write(std::string("ERROR: fold shader failed: ") +
                        renderer.LastError() + "\n");
         capture.Stop();
@@ -778,7 +757,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             // The replacement can report a different mode than the chain was
             // built for; follow it rather than drawing a mis-sized frame.
             if (capture.Healthy() && capture.Width() != 0 && capture.Height() != 0 &&
-                (capture.Width() != contentWidth || capture.Height() != contentHeight)) {
+                (capture.Width() != width || capture.Height() != height)) {
                 const uint32_t newWidth = capture.Width();
                 const uint32_t newHeight = capture.Height();
                 overlay.Show(false);
@@ -791,15 +770,9 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                         "\nERROR: could not resize the content texture; stopping.\n");
                     break;
                 }
-                contentWidth = newWidth;
-                contentHeight = newHeight;
-                parameters.eyeDistancePx = static_cast<float>(eyeHeights * contentHeight);
-                parameters.eyeUpPx =
-                    static_cast<float>(options.eyeHeightHeights * contentHeight);
-                parameters.windowWidth = static_cast<float>(width);
-                parameters.windowHeight = static_cast<float>(height);
-                parameters.originX = static_cast<float>(overlay.OriginX());
-                parameters.originY = static_cast<float>(overlay.OriginY());
+                width = newWidth;
+                height = newHeight;
+                parameters.eyeDistancePx = static_cast<float>(width) * 6.4f;
                 safety.Reset();
             }
         }

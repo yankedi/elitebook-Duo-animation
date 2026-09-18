@@ -88,11 +88,6 @@ cbuffer EffectConstants : register(b0)
 
     float  pictureScale;        // 1 = the picture fills the pane at the anchor;
                                 // less leaves space around it
-    float  windowWidth;         // the pane's size in pixels
-    float  windowHeight;
-    float  originX;             // the pane's top-left on the desktop
-
-    float  originY;
     float3 padding;
 };
 
@@ -157,12 +152,7 @@ float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
         return direct;
     }
 
-    // The pane is a viewport onto the desktop, not the whole of it: it covers
-    // the work area, so its pixels start at `origin` rather than at the screen's
-    // corner.  Everything below works in desktop pixels, which is also what the
-    // captured content is in.
-    const float2 windowSize = float2(windowWidth, windowHeight);
-    const float2 fragCoord = uv * windowSize + float2(originX, originY);
+    const float2 fragCoord = uv * resolution;
     const float2 maxCoord = resolution - 1.0;
 
     // 0 at the edge opposite the hinge, 1 right at the hinge.

@@ -83,10 +83,6 @@ public:
     HWND Handle() const { return m_hwnd; }
     uint32_t Width() const { return m_width; }
     uint32_t Height() const { return m_height; }
-    // Where the pane sits on the desktop: it covers the work area, so that is
-    // not necessarily the screen's origin.
-    int32_t OriginX() const { return m_originX; }
-    int32_t OriginY() const { return m_originY; }
 
 private:
     static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam,
@@ -96,8 +92,6 @@ private:
     HWND m_hwnd = nullptr;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
-    int32_t m_originX = 0;
-    int32_t m_originY = 0;
     bool m_shown = false;
     int m_pendingKey = 0;
 
