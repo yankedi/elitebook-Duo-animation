@@ -375,7 +375,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   "  panel %.0f mm wide, eye %.0f px (%.2f screen heights), parallax %.2f\n"
                   "  capture %ux%u, DXGI_FORMAT %d, overlay %ux%u\n"
                   "  monitor power %s (notify %s), lid switch %s (notify %s), settle %.2f s\n"
-                  "  capture %s, display %s\n\n",
+                  "  capture %s, display %s, reads %.0f/s\n\n",
                   width, height, dpi, parameters.eyeDistancePx,
                   options.activationAngleDeg, parameters.blurStrength,
                   parameters.darkening, parameters.maxDeltaDegrees,
@@ -396,7 +396,8 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
                   overlay.LidNotifyActive() ? "yes" : "NO", safety.RecoveryDelay(),
                   liveCapture ? "live (overlay excluded from capture)"
                               : "snapshot per fold (no capture exclusion)",
-                  options.keepDisplayAwake ? "kept awake" : "system default");
+                  options.keepDisplayAwake ? "kept awake" : "system default",
+                  options.captureRateHz);
     terminal.Write(setup);
 
     // ---- prime the first frame -------------------------------------------
@@ -457,6 +458,7 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
     double lastReportSeconds = -1.0;
     double lastRecoverySeconds = -1.0;
     double lastRefreshSeconds = 0.0;
+    double lastLiveCaptureSeconds = 0.0;
     // When the content texture last received a real desktop frame.  A snapshot
     // that is much older than this stops counting as drawable.
     double lastCaptureSeconds = SteadySeconds();
@@ -884,11 +886,20 @@ int RunFoldEffect(const FoldEffectOptions& options, SensorManager& sensors,
             }
 
             // ---- live content ---------------------------------------------
-            // One non-blocking read per frame.  The duplication only hands back
-            // a frame when the desktop actually changed, which is also the only
-            // time the mip chain needs rebuilding -- so a static desktop costs
-            // nothing here.
-            if (liveCapture && capture.Healthy() && capture.AcquireFrame(0)) {
+            // One non-blocking read per frame at most, and by default much less
+            // often than that: every AcquireNextFrame keeps DWM on its capture
+            // composition path, and other windows' acrylic backdrops cannot stay
+            // cached there, which is what the flicker was.  The duplication only
+            // hands back a frame when the desktop actually changed, and the mip
+            // chain is only rebuilt when a frame arrived, so a static desktop
+            // costs nothing either way.
+            const bool captureDue =
+                options.captureRateHz <= 0.0 ||
+                (sample.steadySeconds - lastLiveCaptureSeconds) >=
+                    (1.0 / options.captureRateHz);
+            if (liveCapture && captureDue && capture.Healthy() &&
+                capture.AcquireFrame(0)) {
+                lastLiveCaptureSeconds = sample.steadySeconds;
                 capture.CopyFrameTo(device.Context(), content.Get());
                 capture.ReleaseFrame();
                 ++captureCount;

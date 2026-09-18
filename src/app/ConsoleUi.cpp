@@ -384,6 +384,7 @@ std::string FormatStartupReport(const std::vector<ChannelInfo>& channels,
     out += Line("  --no-capture-exclusion  do not exclude the pane from capture (snapshot mode)");
     out += Line("  --quiet         stop drawing the status line (acrylic terminals re-blur on repaint)");
     out += Line("  --fps=N         render rate while the effect is up (default 60)");
+    out += Line("  --capture-hz=N  how often the desktop is read per second (default 15; 0 = every frame)");
     out += Line("");
     out += Line("  Fold progress is a visual quantity; no physical angle is estimated.");
     out += Line("");

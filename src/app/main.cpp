@@ -90,6 +90,7 @@ struct Options {
     bool excludeFromCapture = true;
     bool quiet = false;
     double effectRateHz = 60.0;
+    double captureRateHz = 15.0;
     bool help = false;
 };
 
@@ -155,6 +156,9 @@ const wchar_t* kHelp =
     L"  --quiet         stop drawing the status line (an acrylic terminal\n"
     L"                  re-blurs its backdrop on every repaint)\n"
     L"  --fps=N         render rate while the effect is up (default 60)\n"
+    L"  --capture-hz=N  how often the desktop is read, per second (default 15;\n"
+    L"                  0 reads every frame -- lower means less pressure on DWM\n"
+    L"                  and other windows' acrylic blur)\n"
     L"  --help           this text\n"
     L"\n"
     L"Runtime keys: R reset, A auto/manual, +/- nudge, C calibrate, Q quit\n";
@@ -300,6 +304,10 @@ bool ParseArguments(int argc, wchar_t** argv, Options& options) {
             options.quiet = true;
         } else if (argument.rfind(L"--fps=", 0) == 0) {
             if (!ParseNumberArgument(argument, 6, options.effectRateHz)) {
+                return false;
+            }
+        } else if (argument.rfind(L"--capture-hz=", 0) == 0) {
+            if (!ParseNumberArgument(argument, 13, options.captureRateHz)) {
                 return false;
             }
         } else if (argument.rfind(L"--eye=", 0) == 0) {
@@ -945,6 +953,7 @@ int wmain(int argc, wchar_t** argv) {
         foldOptions.excludeFromCapture = options.excludeFromCapture;
         foldOptions.quiet = options.quiet;
         foldOptions.rateHz = options.effectRateHz;
+        foldOptions.captureRateHz = options.captureRateHz;
         const int result =
             dragonfly::RunFoldEffect(foldOptions, sensors, customSensors, g_stop, terminal);
         sensors.Stop();
